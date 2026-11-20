@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فاتورة #{{ invoice.token }} — {{ press_name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@400;600;700;800;900&family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
+    {% set P0 = presets[S.paper] %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        :root {
+            --w: {{ P0.w }}mm;
+            --fs: {{ P0.fs }}px;
+            --m: {{ P0.m }}mm;
+            --minh: {{ (P0.h ~ 'mm') if P0.h else '0' }};
+            --paper: {{ S.color_paper }};
+            --text: {{ S.color_text }};
+            --muted: {{ S.color_muted }};
+            --accent: {{ S.color_accent }};
+            --headbg: {{ S.color_head_bg }};
+            --line: {{ S.color_line }};
+            --bs: {{ S.border_style }};
+            --pad: {{ {'compact': '3px', 'normal': '6px', 'relaxed': '10px'}[S.row_density] }};
+            --fw: {{ {'normal': 500, 'bold': 800, 'black': 900}[S.weight] }};
+            --ff: {{ fonts[S.font]|safe }};
+            --align: {{ S.align }};
+        }
+
+        body {
+            font-family: var(--ff);
+            background: #160104 radial-gradient(circle at 15% 20%, rgba(139,16,36,.35) 0%, transparent 45%), linear-gradient(145deg, #160104, #29040a 55%, #120103);
+            background-attachment: fixed;
+            padding: 20px 10px 60px;
+            direction: rtl;
+            min-height: 100vh;
+        }
+        body.preview { background: #d9d6d2; padding: 14px 8px 30px; }
+
+        /* ===== شريط الأدوات ===== */
+        .toolbar { max-width: 560px; margin: 0 auto 10px; display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
+        .toolbar button, .toolbar a, .toolbar select {
+            border: 1px solid rgba(223,200,176,.4); padding: 9px 16px; border-radius: 12px; font-size: 12.5px; font-weight: 800;
+            cursor: pointer; font-family: inherit; text-decoration: none; background: rgba(25,3,6,.85); color: #dfc8b0;
+        }
+        .toolbar select { padding: 8px 10px; }
+        .toolbar .primary { background: linear-gradient(135deg,#8b1024,#5c0a17); color: #fff; }
+        .toolbar button:hover, .toolbar a:hover { filter: brightness(1.2); }
+        .toolbar label { color: #dfc8b0; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+        .hint { text-align: center; font-size: 11.5px; color: #dfc8b0; margin-bottom: 14px; font-weight: 600; opacity: .85; }
+
+        /* ===== الورقة ===== */
+        .sheet {
+            background: var(--paper); color: var(--text);
+            width: var(--w); min-height: var(--minh); margin: 0 auto;
+            padding: var(--m);
+            font-size: var(--fs); line-height: 1.55; font-weight: var(--fw);
+            box-shadow: 0 25px 50px rgba(0,0,0,.45); border-radius: 6px;
+            overflow-wrap: anywhere;
+        }
+        .sheet .muted { color: var(--muted); }
+        .sep { border: 0; border-top: 1.5px var(--bs) var(--line); margin: 8px 0; }
+        .sep.none { display: none; }
+
+        .r-header { text-align: var(--align); border-bottom: 2px solid var(--line); padding-bottom: 8px; margin-bottom: 8px; }
+        .r-header img.logo { max-width: 100%; object-fit: contain; display: block; margin: 0 0 5px; }
+        .r-header.a-center img.logo { margin-inline: auto; }
+        .r-header.a-left img.logo { margin-inline-start: auto; margin-inline-end: 0; }
+        .r-header h1 { font-size: 1.5em; font-weight: 900; line-height: 1.3; }
+        .r-header .sub { font-size: .95em; margin-top: 2px; font-weight: 800; }
+        .r-header .hl { font-size: .85em; color: var(--muted); margin-top: 1px; font-weight: 700; }
+
+        .r-meta { font-size: .95em; border-bottom: 1.5px var(--bs) var(--line); padding-bottom: 7px; margin-bottom: 8px; }
+        .r-meta div { display: flex; justify-content: space-between; gap: 8px; padding: 1.5px 0; }
+        .r-meta .lbl { color: var(--muted); }
+        .r-meta .val { font-weight: 900; text-align: left; direction: ltr; unicode-bidi: isolate; }
+
+        table.r-items { width: 100%; border-collapse: collapse; font-size: .95em; margin-bottom: 8px; }
+        table.r-items th { border-top: 2px solid var(--line); border-bottom: 2px solid var(--line); padding: 5px 3px; text-align: right; background: var(--headbg); font-weight: 900; }
+        table.r-items td { padding: var(--pad) 3px; border-bottom: 1px var(--bs) var(--line); vertical-align: top; }
+        table.r-items .num { text-align: left; white-space: nowrap; direction: ltr; unicode-bidi: isolate; }
+        .item-name { font-weight: 900; }
+        .item-dims { font-size: .88em; color: var(--muted); }
+        body.xs .c-price { display: none; }
+
+        table.r-totals { width: 100%; font-size: .98em; border-collapse: collapse; }
+        table.r-totals td { padding: 2.5px 3px; }
+        table.r-totals .lbl { color: var(--muted); }
+        table.r-totals .val { text-align: left; font-weight: 900; white-space: nowrap; direction: ltr; unicode-bidi: isolate; }
+        .tr-grand td { border-top: 2.5px solid var(--line); border-bottom: 2.5px solid var(--line); font-size: 1.2em; font-weight: 900; padding: 6px 3px; color: var(--text); }
+        .tr-grand .lbl { color: var(--text); }
+        .tr-remaining .val, .tr-remaining .lbl { color: var(--accent); font-weight: 900; }
+
+        .debt-stamp { border: 2px solid var(--accent); color: var(--accent); text-align: center; font-weight: 900; border-radius: 8px; padding: 5px; margin: 9px 0; }
+        .block-note { border-top: 1.5px var(--bs) var(--line); padding-top: 6px; margin-top: 8px; font-size: .92em; white-space: pre-line; }
+        .block-note b { font-weight: 900; }
+
+        .signatures { display: none; justify-content: space-between; margin-top: 38px; gap: 14px; }
+        .signatures.sig-on { display: flex; }
+        body.wide .signatures.sig-auto { display: flex; }
+        .signatures .sig { text-align: center; width: 46%; font-weight: 900; }
+        .signatures .sig .line { border-top: 1.5px solid var(--line); margin-top: 30px; padding-top: 5px; }
+
+        .r-qr { text-align: center; margin-top: 10px; }
+        .r-qr img { display: block; margin: 0 auto; image-rendering: pixelated; }
+        .r-qr .tok { font-family: monospace; font-weight: 900; margin-top: 2px; direction: ltr; }
+        .r-footer { text-align: center; font-size: .9em; border-top: 2px var(--bs) var(--line); padding-top: 7px; margin-top: 10px; line-height: 1.6; }
+        .r-footer .ft { white-space: pre-line; font-weight: 800; }
+        .r-footer .brand { font-size: .82em; color: var(--muted); margin-top: 3px; }
+
+        /* ===== الطباعة ===== */
+        @media print {
+            html, body { background: #fff !important; padding: 0 !important; min-height: 0 !important; }
+            .no-print { display: none !important; }
+            .sheet { box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; zoom: 1 !important; min-height: 0 !important; width: var(--w) !important; }
+        }
+    </style>
+    <style id="page-rule">@page { size: {{ P0.w }}mm {{ (P0.h ~ 'mm') if P0.h else 'auto' }}; margin: 0; }</style>
+</head>
+<body class="{{ 'preview' if preview }}">
+
+{% if not preview %}
+    <div class="toolbar no-print">
+        <label>مقاس الورق
+            <select id="paperSel" onchange="applyPaper(this.value)">
+                {% for k, p in presets.items() %}
+                <option value="{{ k }}" {{ 'selected' if k == S.paper }}>{{ p.label }}{% if p.w %} ({{ '%g' % p.w }}{% if p.h %}×{{ '%g' % p.h }}{% endif %} مم){% endif %}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="primary" onclick="printNow()">🖨️ طباعة</button>
+        {% if can_design %}<a href="/admin#design" title="تعديل شكل الفاتورة">🎨 تعديل التصميم</a>{% endif %}
+        <button onclick="window.close()">✖ إغلاق</button>
+    </div>
+    <p class="hint no-print">اختر المقاس المناسب للطابعة ثم اضغط طباعة. المقاس الافتراضي بيحدده الأدمن من «تصميم الفاتورة».</p>
+{% endif %}
+
+    {% set show = S.show %}{% set L = S.labels %}
+    <div class="sheet" id="sheet">
+        <div class="r-header a-{{ S.align }}">
+            {% if show.logo and S.logo %}<img class="logo" src="{{ S.logo }}" alt="" style="height: {{ S.logo_size }}mm;">{% endif %}
+            {% if show.title %}<h1>{{ press_name }}</h1>{% endif %}
+            {% if show.subtitle and S.subtitle %}<div class="sub">{{ S.subtitle }}</div>{% endif %}
+            {% if show.header_lines %}{% for ln in S.header_lines.split('\n') if ln.strip() %}<div class="hl">{{ ln.strip() }}</div>{% endfor %}{% endif %}
+        </div>
+
+        {% set meta = [] %}
+        {% if show.number %}{% set _ = meta.append((L.doc, '#' ~ invoice.token)) %}{% endif %}
+        {% if show.date %}{% set _ = meta.append((L.date, invoice.date_str)) %}{% endif %}
+        {% if show.customer %}{% set _ = meta.append((L.customer, invoice.customer_name)) %}{% endif %}
+        {% if show.phone and invoice.customer_phone %}{% set _ = meta.append((L.phone, invoice.customer_phone)) %}{% endif %}
+        {% if show.cashier %}{% set _ = meta.append((L.cashier, invoice.cashier_full_name or invoice.cashier_username)) %}{% endif %}
+        {% if show.payment %}{% set _ = meta.append((L.payment, invoice.payment_method)) %}{% endif %}
+        {% if show.status %}{% set _ = meta.append((L.status, invoice.delivery_status)) %}{% endif %}
+        {% if show.tier and invoice.customer_tier %}{% set _ = meta.append((L.tier, '👑 ' ~ invoice.customer_tier)) %}{% endif %}
+        {% if meta %}
+        <div class="r-meta">
+            {% for lbl, val in meta %}<div><span class="lbl">{{ lbl }}:</span><span class="val">{{ val }}</span></div>{% endfor %}
+        </div>
+        {% endif %}
+
+        <table class="r-items">
+            <thead>
+                <tr>
+                    {% if show.col_index %}<th>{{ L.c_index }}</th>{% endif %}
+                    <th>{{ L.c_item }}</th>
+                    {% if show.col_qty %}<th>{{ L.c_qty }}</th>{% endif %}
+                    {% if show.col_price %}<th class="c-price">{{ L.c_price }}</th>{% endif %}
+                    <th>{{ L.c_total }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in items %}
+                <tr>
+                    {% if show.col_index %}<td>{{ loop.index }}</td>{% endif %}
+                    <td>
+                        <span class="item-name">{{ i.name }}</span>
+                        {% if show.dims and i.height and i.width and i.height > 0 and i.width > 0 %}
+                        <br><span class="item-dims">{{ L.dims }}: {{ '{:g}'.format(i.height) }}×{{ '{:g}'.format(i.width) }} {{ L.cm }}</span>
+                        {% endif %}
+                    </td>
+                    {% if show.col_qty %}<td>{{ '{:g}'.format(i.qty or 0) }}</td>{% endif %}
+                    {% if show.col_price %}<td class="num c-price">{{ fmt(i.unit_price) }}</td>{% endif %}
+                    <td class="num">{{ fmt(i.total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table class="r-totals">
+            <tr><td class="lbl">{{ L.subtotal }}:</td><td class="val">{{ fmt(invoice.subtotal) }} {{ S.currency }}</td></tr>
+            {% if show.design and invoice.design_price and invoice.design_price > 0 %}
+            <tr><td class="lbl">{{ L.design }}:</td><td class="val">{{ fmt(invoice.design_price) }} {{ S.currency }}</td></tr>
+            {% endif %}
+            {% if show.extras %}
+                {% if invoice.cutting_qty and invoice.cutting_qty > 0 %}<tr><td class="lbl">{{ L.cutting }} ({{ invoice.cutting_qty }}):</td><td class="val">{{ fmt(invoice.cutting_total) }} {{ S.currency }}</td></tr>{% endif %}
+                {% if invoice.solofan_qty and invoice.solofan_qty > 0 %}<tr><td class="lbl">{{ L.solofan }} ({{ invoice.solofan_qty }}):</td><td class="val">{{ fmt(invoice.solofan_total) }} {{ S.currency }}</td></tr>{% endif %}
+                {% if invoice.beshr_qty and invoice.beshr_qty > 0 %}<tr><td class="lbl">{{ L.beshr }} ({{ invoice.beshr_qty }}):</td><td class="val">{{ fmt(invoice.beshr_total) }} {{ S.currency }}</td></tr>{% endif %}
+            {% endif %}
+            {% if show.extras %}{% for e in extras %}<tr><td class="lbl">{{ e.name }}{% if e.qty != 1 %} ({{ '{:g}'.format(e.qty) }}){% endif %}:</td><td class="val">{{ fmt(e.total) }} {{ S.currency }}</td></tr>{% endfor %}{% endif %}
+            {% if show.discount and invoice.discount and invoice.discount > 0 %}
+            <tr><td class="lbl">{{ L.discount }}:</td><td class="val">- {{ fmt(invoice.discount) }} {{ S.currency }}</td></tr>
+            {% endif %}
+            <tr class="tr-grand"><td class="lbl">{{ L.grand }}:</td><td class="val">{{ fmt(invoice.grand_total) }} {{ S.currency }}</td></tr>
+            {% if show.paid %}<tr><td class="lbl">{{ L.paid }}:</td><td class="val">{{ fmt(invoice.deposit) }} {{ S.currency }}</td></tr>{% endif %}
+            {% if show.remaining and invoice.remaining and invoice.remaining > 0 %}
+            <tr class="tr-remaining"><td class="lbl">{{ L.remaining }}:</td><td class="val">{{ fmt(invoice.remaining) }} {{ S.currency }}</td></tr>
+            {% endif %}
+        </table>
+
+        {% if show.debt_stamp and invoice.remaining and invoice.remaining > 0 %}
+        <div class="debt-stamp">{{ L.debt }}: {{ fmt(invoice.remaining) }} {{ S.currency }}</div>
+        {% endif %}
+
+        {% if show.notes and invoice.notes %}<div class="block-note"><b>{{ L.notes }}:</b> {{ invoice.notes }}</div>{% endif %}
+        {% if show.terms and S.terms %}<div class="block-note muted"><b>{{ L.terms }}:</b><br>{{ S.terms }}</div>{% endif %}
+
+        {% if S.signatures != 'off' %}
+        <div class="signatures sig-{{ S.signatures }}">
+            <div class="sig"><div class="line">{{ L.sig_customer }}</div></div>
+            <div class="sig"><div class="line">{{ L.sig_shop }}</div></div>
+        </div>
+        {% endif %}
+
+        {% if qr_base64 %}
+        <div class="r-qr">
+            <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR" style="width: {{ S.qr_size }}mm; height: {{ S.qr_size }}mm;">
+            <div class="tok">#{{ invoice.token }}</div>
+        </div>
+        {% endif %}
+
+        {% if show.footer or show.copyright or (show.brand and S.brand_text) %}
+        <div class="r-footer">
+            {% if show.footer %}
+                {% if S.footer_text %}<div class="ft">{{ S.footer_text }}</div>{% endif %}
+                {% for ln in S.footer_lines.split('\n') if ln.strip() %}<div>{{ ln.strip() }}</div>{% endfor %}
+            {% endif %}
+            {% if show.copyright %}<div>{{ press_name }} © {{ current_year }}</div>{% endif %}
+            {% if show.brand and S.brand_text %}<div class="brand">{{ S.brand_text }}</div>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const PRESETS = {{ presets|tojson }};
+        let current = {{ S.paper|tojson }};
+        const sheet = document.getElementById('sheet');
+        const isPreview = {{ 'true' if preview else 'false' }};
+
+        function fit() {
+            sheet.style.zoom = '';
+            const avail = window.innerWidth - 16, w = sheet.offsetWidth;
+            if (w > avail) sheet.style.zoom = (avail / w).toFixed(3);
+        }
+
+        function pageRule() {
+            const p = PRESETS[current] || PRESETS.thermal80;
+            sheet.style.zoom = '';
+            let h = p.h;
+            if (!h) h = Math.ceil(sheet.offsetHeight * 25.4 / 96) + 4;   // الورق الحراري: الطول على قد الفاتورة
+            document.getElementById('page-rule').textContent = '@page { size: ' + p.w + 'mm ' + h + 'mm; margin: 0; }';
+        }
+
+        function applyPaper(key) {
+            const p = PRESETS[key] || PRESETS.thermal80;
+            current = key;
+            const r = document.documentElement.style;
+            r.setProperty('--w', p.w + 'mm');
+            r.setProperty('--fs', p.fs + 'px');
+            r.setProperty('--m', p.m + 'mm');
+            r.setProperty('--minh', p.h ? p.h + 'mm' : '0');
+            document.body.classList.toggle('wide', p.w > 120);
+            document.body.classList.toggle('xs', p.w < 65);
+            pageRule();
+            fit();
+        }
+
+        function printNow() {
+            pageRule();
+            setTimeout(() => window.print(), 80);
+        }
+
+        window.addEventListener('resize', fit);
+        window.addEventListener('afterprint', () => {
+            fit();
+            if (!isPreview && window.opener) setTimeout(() => { try { window.close(); } catch (e) {} }, 300);
+        });
+        (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => applyPaper(current));
+        applyPaper(current);
+    </script>
+</body>
+</html>

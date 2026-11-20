@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقرير الإغلاق المالي الدوري — {{ press_name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Tajawal', sans-serif;
+        }
+
+        :root {
+            --royal-red: #5c0a17;
+            --royal-red-dark: #1f0307;
+            --cream-gold: #dfc8b0;
+            --cream-light: #faf5ef;
+        }
+
+        body {
+            background-color: var(--royal-red-dark);
+            color: #1a1a1a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .report-card {
+            max-width: 440px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        .btn-print {
+            display: block;
+            width: 100%;
+            background: linear-gradient(135deg, #8b1024, #5c0a17);
+            border: 1px solid var(--cream-gold);
+            color: #faf5ef;
+            text-align: center;
+            padding: 12px;
+            font-weight: 800;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-bottom: 16px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+        }
+        .btn-print:hover { transform: translateY(-1px); }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+        }
+        .header h2 { font-size: 18px; font-weight: 900; color: #000; }
+        .header p { font-size: 11px; font-weight: 800; color: #444; margin-top: 2px; }
+
+        .meta-box {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 8px;
+            font-size: 10.5px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 900;
+            color: #000;
+            border-right: 3.5px solid #8b1024;
+            padding-right: 6px;
+            margin: 14px 0 6px 0;
+        }
+
+        .info-list {
+            border: 1.5px solid #000;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: #fafafa;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11.5px;
+            font-weight: 800;
+            padding-bottom: 3px;
+            border-bottom: 1px dashed #ccc;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            padding-top: 4px;
+            font-size: 13px;
+            font-weight: 900;
+            color: #8b1024;
+            border-top: 1.5px solid #000;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin: 8px 0;
+            border: 1.5px solid #000;
+        }
+        th {
+            background: #f0f0f0;
+            color: #000;
+            padding: 6px 4px;
+            font-weight: 900;
+            border-bottom: 1.5px solid #000;
+            text-align: center;
+        }
+        td {
+            padding: 6px 4px;
+            border-bottom: 1px dashed #ddd;
+            text-align: center;
+            font-weight: 800;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 9.5px;
+            font-weight: 800;
+            color: #444;
+            border-top: 1.5px dashed #000;
+            padding-top: 8px;
+            margin-top: 14px;
+        }
+
+        @media print {
+            body { background: white !important; padding: 0 !important; }
+            .no-print { display: none !important; }
+            .report-card {
+                box-shadow: none !important;
+                border: none !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="report-card">
+        <div class="no-print">
+            <button onclick="window.print()" class="btn-print">
+                🖨️ طباعة تقرير الإغلاق المالي
+            </button>
+        </div>
+
+        <div class="header">
+            <h2>{{ press_name }}</h2>
+            <p>📊 تقرير الإغلاق والتدفق المالي الدوري</p>
+        </div>
+
+        <div class="meta-box">
+            الفترة المعتمدة: من <strong>{{ start_date }}</strong> إلى <strong>{{ end_date }}</strong><br>
+            تاريخ التوليد: {{ report_date }}
+        </div>
+
+        <!-- الجرد المالي للخزينة -->
+        <h4 class="section-title">الموقف المالي وجرد الخزينة:</h4>
+        <div class="info-list">
+            <div class="info-row">
+                <span>إجمالي مبيعات الفواتير:</span>
+                <span class="font-mono">{{ "{:,.2f}".format(total_sales or 0) }} ج.م</span>
+            </div>
+            <div class="info-row">
+                <span>الخزينة المحصلة فعلياً (المقدمات):</span>
+                <span class="font-mono" style="text-decoration: underline;">{{ "{:,.2f}".format(total_collected or 0) }} ج.م</span>
+            </div>
+            <div class="info-row">
+                <span>المتبقي ديون طرف العملاء:</span>
+                <span class="font-mono">{{ "{:,.2f}".format(total_remaining or 0) }} ج.م</span>
+            </div>
+            <div class="info-row">
+                <span>إجمالي رسوم التصميم:</span>
+                <span class="font-mono">{{ "{:,.2f}".format(total_design or 0) }} ج.م</span>
+            </div>
+            <div class="info-row">
+                <span>إجمالي الخصومات الممنوحة:</span>
+                <span class="font-mono">{{ "{:,.2f}".format(total_discounts or 0) }} ج.م</span>
+            </div>
+            <div class="info-row">
+                <span>المصروفات المنصرفة من الخزينة:</span>
+                <span class="font-mono" style="color: #b91c1c;">- {{ "{:,.2f}".format(total_expenses or 0) }} ج.م</span>
+            </div>
+            <div class="info-row">
+                <span>صافي رصيد الخزينة المتبقي:</span>
+                <span class="font-mono">{{ "{:,.2f}".format((total_collected or 0) - (total_expenses or 0)) }} ج.م</span>
+            </div>
+        </div>
+
+        <!-- جرد ومسحوبات الكاشيرات -->
+        <h4 class="section-title">حسابات وسلف الموظفين:</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th style="text-align: right; width: 40%;">الموظف</th>
+                    <th>الأساسي</th>
+                    <th>سلف (-)</th>
+                    <th>المستحق</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cashiers_list %}
+                <tr>
+                    <td style="text-align: right; font-weight: 900;">{{ c.full_name }}</td>
+                    <td class="font-mono">{{ "{:,.2f}".format(c.base_salary or 0) }}</td>
+                    <td class="font-mono">{{ "{:,.2f}".format(c.advances or 0) }}</td>
+                    <td class="font-mono" style="font-weight: 900;">{{ "{:,.2f}".format(c.net or 0) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="color: #777; padding: 6px;">لا توجد حسابات كاشير</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>تم استخراج التقرير بمعرفة النظام وإغلاق الفترة بنجاح</p>
+            <p style="margin-top: 6px;">توقيع الإدارة المعتمد: ...............................</p>
+            <p style="font-size: 8px; margin-top: 4px; font-weight: bold;">KIRO CLOUD PRINT OS &copy; {{ current_year }}</p>
+        </div>
+    </div>
+
+</body>
+</html>

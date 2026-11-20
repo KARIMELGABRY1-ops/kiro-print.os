@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بيع سريع بدون فاتورة — {{ press_name }}</title>
+    {{ ui_head() }}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+    <style>.cnt-btn{min-width:62px;height:54px;font-size:18px;font-weight:900}.svc-btn{text-align:start;padding:12px;border-radius:14px;background:var(--ui-surface2);border:1px solid var(--ui-line);cursor:pointer;transition:transform .1s}.svc-btn:hover{border-color:var(--ui-gold)}.svc-btn.sel{border-color:var(--ui-gold);background:color-mix(in srgb,var(--ui-brand) 55%,var(--ui-surface2));color:#fff}</style>
+</head>
+<body class="text-sm">
+<header class="sticky top-0 z-40 flex items-center gap-3 px-4 py-3 flex-wrap" style="background: color-mix(in srgb, var(--ui-surface) 92%, transparent); backdrop-filter: blur(10px); border-bottom:1px solid var(--ui-line)">
+    <a href="/cashier" class="btn btn-icon" aria-label="رجوع"><i class="fa-solid fa-arrow-right"></i></a>
+    <div><h1 class="font-black text-[16px] leading-tight"><i class="fa-solid fa-bolt gold-t"></i> بيع سريع بدون فاتورة</h1>
+        <p class="sub">مثال: تصوير مستندات — اختر الخدمة واكتب العدد والفلوس بتتحسب</p></div>
+    <div class="ms-auto flex gap-2 items-center">
+        <div class="card !py-2 !px-4 text-center"><div class="sub">إجمالي اليوم</div><div id="dayTotal" class="mono font-black ok-t text-[16px]">0.00</div></div>
+        <button class="btn btn-sm" onclick="toggleTheme()"><i class="fa-solid fa-circle-half-stroke gold-t"></i></button>
+        {% for code, info in langs.items() if code != lang %}<a class="btn btn-sm" href="/lang/{{ code }}">{{ info.name }}</a>{% endfor %}
+    </div>
+</header>
+
+<main class="p-4 lg:p-6 max-w-[1400px] mx-auto space-y-4">
+    <div class="ui-note" data-note-id="quick"><i class="fa-solid fa-lightbulb"></i><div><b>للشغل السريع على الكاونتر:</b> اختر الخدمة (مثلاً «تصوير ورقة A4» بسعر ج للورقة)، اضغط الأرقام أو اكتب عدد الورق اللي خرج، واضغط <b>تسجيل</b>. مفيش فاتورة — بس العدد والفلوس بيتسجلوا في خزينة اليوم والمخزن. «الهالك» هو الورق اللي باظ: بيتخصم من المخزن من غير ما يتحاسب.</div></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <section class="card lg:col-span-5">
+            <div class="card-title"><i class="fa-solid fa-list"></i> اختر الخدمة / الخامة</div>
+            <input type="search" id="svcSearch" class="inp mb-3" placeholder="ابحث..." oninput="renderSvc()">
+            <div id="svcGrid" class="grid grid-cols-2 gap-2 scroll-y" style="max-height:60vh"></div>
+            <div class="mt-3 pt-3" style="border-top:1px solid var(--ui-line)"><label class="lbl" for="manName">أو اكتب خدمة يدوية</label>
+                <div class="grid grid-cols-3 gap-2"><input id="manName" class="inp col-span-2" placeholder="الاسم"><input id="manPrice" type="number" step="any" min="0" class="inp mono" placeholder="سعر الوحدة"></div>
+                <button class="btn btn-sm mt-2" onclick="pickManual()">استخدام الخدمة اليدوية</button></div>
+        </section>
+
+        <section class="lg:col-span-7 space-y-4">
+            <div class="card" id="counter">
+                <div class="flex items-start justify-between gap-3"><div><div class="sub">الخدمة المختارة</div><h2 id="selName" class="font-black text-[18px]">— اختر خدمة —</h2><div id="selMeta" class="sub"></div></div>
+                    <div class="text-center"><div class="sub">الإجمالي</div><div id="lineTotal" class="mono font-black gold-t" style="font-size:30px">0.00</div></div></div>
+                <div class="grid grid-cols-2 gap-3 mt-4">
+                    <div><label class="lbl" for="qty">العدد (اللي خرج / اتباع)</label><input id="qty" type="number" step="any" min="0" class="inp mono" style="font-size:22px;font-weight:900;text-align:center" value="0" oninput="calc()" onkeydown="if(event.key==='Enter')submitQuick()"></div>
+                    <div><label class="lbl" for="price">سعر الوحدة <span class="ui-q" tabindex="0" data-tip="بيتغير تلقائي لسعر الجملة لو العدد وصل لحد الجملة، وتقدر تعدله بإيدك.">؟</span></label><input id="price" type="number" step="any" min="0" class="inp mono" style="font-size:22px;font-weight:900;text-align:center" oninput="priceTouched=true;calc()"></div>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    {% for n in [1, 5, 10, 20, 50, 100] %}<button class="btn cnt-btn" onclick="addQty({{ n }})">+{{ n }}</button>{% endfor %}
+                    <button class="btn cnt-btn btn-danger" onclick="addQty(-1)">−1</button><button class="btn cnt-btn" onclick="setQty(0)">صفر</button>
+                </div>
+                <div class="grid grid-cols-3 gap-3 mt-4 items-end">
+                    <div><label class="lbl" for="wasted">هالك (ورق باظ)</label><input id="wasted" type="number" step="any" min="0" class="inp mono" value="0"></div>
+                    <div class="col-span-2"><label class="lbl" for="note">ملاحظة</label><input id="note" class="inp" placeholder="اختياري"></div>
+                </div>
+                <button class="btn btn-brand w-full mt-4" style="height:52px;font-size:15px" onclick="submitQuick()"><i class="fa-solid fa-circle-check"></i> تسجيل (Enter)</button>
+            </div>
+
+            <div class="card"><div class="card-title"><i class="fa-solid fa-chart-simple"></i> ملخص اليوم حسب الخدمة</div>
+                <div class="overflow-x-auto"><table class="tbl"><thead><tr><th>الخدمة</th><th>العدد</th><th>هالك</th><th>الفلوس</th></tr></thead><tbody id="groups"></tbody></table></div></div>
+            <div class="card"><div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> آخر العمليات</div>
+                <div class="overflow-x-auto scroll-y" style="max-height:300px"><table class="tbl"><thead><tr><th>الوقت</th><th>الخدمة</th><th>العدد</th><th>الإجمالي</th><th></th></tr></thead><tbody id="rows"></tbody></table></div></div>
+        </section>
+    </div>
+</main>
+
+<script>
+const E = UI.esc, num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+const fm = n => (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const SERVICES = {{ services|tojson }};
+let SEL = null, priceTouched = false;
+function toggleTheme() { const c = document.body.classList.toggle('cream-mode'); localStorage.setItem('kiro_theme', c ? 'cream' : 'royal'); }
+if (localStorage.getItem('kiro_theme') === 'cream') document.body.classList.add('cream-mode');
+
+function renderSvc() {
+    const q = svcSearch.value.trim().toLowerCase();
+    document.getElementById('svcGrid').innerHTML = SERVICES.filter(s => !q || s.name.toLowerCase().includes(q)).map(s =>
+        '<button type="button" class="svc-btn' + (SEL && SEL.id === s.id ? ' sel' : '') + '" onclick="pick(' + s.id + ')"><div class="font-black">' + (s.fav ? '⭐ ' : '') + E(s.name) + '</div><div class="mono ' + (SEL && SEL.id === s.id ? '' : 'gold-t') + ' font-black">' + fm(s.price) + ' ج / ' + E(s.unit) + '</div>' +
+        (s.stock >= 0 ? '<div class="sub" style="font-size:11px">المخزن: ' + s.stock + '</div>' : '') + '</button>').join('') || '<div class="empty col-span-2">مفيش نتائج.</div>';
+}
+function pick(id) { SEL = SERVICES.find(s => s.id === id); priceTouched = false; showSel(); }
+function pickManual() {
+    const n = manName.value.trim(); if (!n) return UI.toast('اكتب اسم الخدمة.', 'error');
+    SEL = {id: 0, name: n, price: num(manPrice.value), unit: 'وحدة', stock: -1, price_bulk: 0, bulk_threshold: 0}; priceTouched = true; showSel(); price.value = SEL.price;
+}
+function showSel() {
+    selName.textContent = SEL.name; selMeta.textContent = 'الوحدة: ' + SEL.unit + (SEL.bulk_threshold > 0 && SEL.price_bulk > 0 ? ' — جملة ' + fm(SEL.price_bulk) + ' من ' + SEL.bulk_threshold : '');
+    if (!priceTouched) price.value = SEL.price; renderSvc(); calc(); qty.focus(); qty.select();
+}
+function unitPrice() {
+    if (!SEL) return 0; if (priceTouched) return num(price.value);
+    const q = num(qty.value); const p = (SEL.bulk_threshold > 0 && SEL.price_bulk > 0 && q >= SEL.bulk_threshold) ? SEL.price_bulk : SEL.price; price.value = p; return p;
+}
+function calc() { lineTotal.textContent = fm(num(qty.value) * unitPrice()); }
+function addQty(n) { qty.value = Math.max(0, num(qty.value) + n); calc(); }
+function setQty(n) { qty.value = n; calc(); }
+async function submitQuick() {
+    if (!SEL) return UI.toast('اختر الخدمة الأول.', 'error');
+    if (num(qty.value) <= 0 && num(wasted.value) <= 0) return UI.toast('اكتب العدد.', 'error');
+    const d = await (await fetch('/api/quick/add', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+        service_id: SEL.id, name: SEL.name, qty: num(qty.value), wasted: num(wasted.value), unit_price: num(price.value), note: note.value})})).json();
+    if (!d.success) return UI.toast(d.message, 'error');
+    UI.toast('تم التسجيل ✅ ' + fm(num(qty.value) * num(price.value)) + ' ج', 'success'); (d.warnings || []).forEach(w => UI.toast(w, 'warn', 8000));
+    qty.value = 0; wasted.value = 0; note.value = ''; calc(); await loadDay();
+    const s = SERVICES.find(x => SEL && x.id === SEL.id); if (s && s.stock >= 0) { location.reload(); }
+}
+async function loadDay() {
+    const d = await (await fetch('/api/quick/list')).json();
+    dayTotal.textContent = fm(d.total);
+    groups.innerHTML = d.groups.map(g => '<tr><td class="font-bold">' + E(g.name) + '</td><td class="mono">' + g.qty + '</td><td class="mono warn-t">' + (g.wasted || '') + '</td><td class="mono ok-t font-black">' + fm(g.total) + '</td></tr>').join('') || '<tr><td colspan="4" class="empty">لسه مفيش عمليات النهاردة.</td></tr>';
+    rows.innerHTML = d.rows.map(r => '<tr><td class="sub mono" style="white-space:nowrap">' + E(r.date.slice(11)) + '</td><td>' + E(r.name) + '</td><td class="mono">' + r.qty + (r.wasted ? ' <span class="warn-t">(هالك ' + r.wasted + ')</span>' : '') + '</td><td class="mono font-black">' + fm(r.total) + '</td>' +
+        '<td><button class="btn btn-danger btn-icon btn-sm" aria-label="حذف" onclick="delRow(' + r.id + ')"><i class="fa-solid fa-trash"></i></button></td></tr>').join('') || '<tr><td colspan="5" class="empty">—</td></tr>';
+}
+async function delRow(id) {
+    if (!await UI.confirm({title: 'حذف العملية', message: 'هتتحذف العملية وهيرجع الكمية للمخزن. متأكد؟', danger: true, okText: 'احذف'})) return;
+    const d = await (await fetch('/api/quick/' + id + '/delete', {method: 'POST'})).json();
+    if (!d.success) return UI.toast(d.message, 'error'); loadDay();
+}
+renderSvc(); loadDay();
+</script>
+</body>
+</html>

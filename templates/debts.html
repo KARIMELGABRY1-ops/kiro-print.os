@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سداد المديونيات — {{ press_name }}</title>
+    {{ ui_head() }}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="text-sm">
+<header class="sticky top-0 z-40 flex items-center gap-3 px-4 py-3 flex-wrap" style="background: color-mix(in srgb, var(--ui-surface) 92%, transparent); backdrop-filter: blur(10px); border-bottom:1px solid var(--ui-line)">
+    <a href="{{ '/cashier' }}" class="btn btn-icon" aria-label="رجوع"><i class="fa-solid fa-arrow-right"></i></a>
+    <div><h1 class="font-black text-[16px] leading-tight"><i class="fa-solid fa-hand-holding-dollar gold-t"></i> سداد المديونيات</h1>
+        <p class="sub">سدّد جزء من الفلوس أو جزء من فاتورة قديمة — كل عملية بتتسجل بالتاريخ والوقت</p></div>
+    <div class="ms-auto flex gap-2">
+        <button class="btn btn-sm" onclick="toggleTheme()"><i class="fa-solid fa-circle-half-stroke gold-t"></i></button>
+        {% for code, info in langs.items() if code != lang %}<a class="btn btn-sm" href="/lang/{{ code }}">{{ info.name }}</a>{% endfor %}
+    </div>
+</header>
+
+<main class="p-4 lg:p-6 max-w-[1400px] mx-auto space-y-4">
+    <div class="ui-note" data-note-id="debts-page"><i class="fa-solid fa-lightbulb"></i><div><b>إزاي تسدد؟</b> اختر العميل من القائمة، وبعدين إما تدفع <b>مبلغ عام</b> (بيتوزع تلقائي: المديونية القديمة الأول ثم أقدم الفواتير)، أو اضغط <b>«سداد»</b> جنب فاتورة معينة وادفع جزء منها أو كلها. تقدر كمان تضيف <b>مديونية قديمة</b> على عميل أخد خدمة من غير فاتورة.</div></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- قائمة العملاء -->
+        <section class="card lg:col-span-4">
+            <div class="card-title"><i class="fa-solid fa-users"></i> العملاء عليهم مبالغ <span id="debtsTotal" class="badge bad mono ms-auto"></span></div>
+            <input type="search" id="custSearch" class="inp mb-3" placeholder="ابحث بالاسم أو الهاتف..." oninput="renderList()">
+            <div id="custList" class="space-y-2 scroll-y" style="max-height:62vh"></div>
+            <details class="mt-4 acc"><summary><i class="fa-solid fa-clock-rotate-left gold-t"></i> إضافة مديونية قديمة على عميل</summary>
+                <div class="acc-b grid gap-3">
+                    <p class="sub">لو عميل أخد خدمة ومعملناش له فاتورة وفضل عليه فلوس.</p>
+                    <div><label class="lbl" for="ob_name">اسم العميل *</label><input id="ob_name" class="inp" list="allCust" autocomplete="off"><datalist id="allCust"></datalist></div>
+                    <div class="grid grid-cols-2 gap-3"><div><label class="lbl" for="ob_phone">الهاتف</label><input id="ob_phone" class="inp mono"></div>
+                        <div><label class="lbl" for="ob_amount">المبلغ المتبقي *</label><input id="ob_amount" type="number" step="any" min="0" class="inp mono"></div></div>
+                    <div><label class="lbl" for="ob_note">ملاحظة</label><input id="ob_note" class="inp" placeholder="مثال: طباعة بنر الشهر اللي فات"></div>
+                    <button class="btn btn-brand" onclick="addOldBalance()"><i class="fa-solid fa-plus"></i> تسجيل المديونية</button>
+                </div></details>
+        </section>
+
+        <!-- تفاصيل العميل -->
+        <section class="lg:col-span-8 space-y-4" id="detail">
+            <div class="card empty"><i class="fa-regular fa-hand-pointer"></i>اختر عميل من القائمة لعرض فواتيره وتسجيل السداد.</div>
+        </section>
+    </div>
+</main>
+
+<script>
+const E = UI.esc, num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+const fm = n => (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const KIND = {invoice: 'سداد فاتورة', old_balance: 'سداد مديونية قديمة', old_balance_add: 'إضافة مديونية قديمة'};
+let LIST = [], CUR = null;
+
+function toggleTheme() { const c = document.body.classList.toggle('cream-mode'); localStorage.setItem('kiro_theme', c ? 'cream' : 'royal'); }
+if (localStorage.getItem('kiro_theme') === 'cream') document.body.classList.add('cream-mode');
+
+async function loadList(keep) {
+    LIST = await (await fetch('/api/debt/customers')).json();
+    document.getElementById('debtsTotal').textContent = fm(LIST.reduce((a, c) => a + c.total_debt, 0)) + ' ج';
+    renderList();
+    if (keep && CUR) openCustomer(CUR);
+}
+function renderList() {
+    const q = custSearch.value.trim().toLowerCase();
+    const rows = LIST.filter(c => !q || c.name.toLowerCase().includes(q) || (c.phone || '').includes(q));
+    document.getElementById('custList').innerHTML = rows.length ? rows.map(c =>
+        '<button type="button" class="w-full text-start p-3 rounded-xl flex justify-between items-center gap-2" style="background:var(--ui-surface2);border:1px solid ' + (CUR === c.name ? 'var(--ui-gold)' : 'var(--ui-line)') + '" data-n="' + E(c.name) + '" onclick="openCustomer(this.dataset.n)">' +
+        '<span class="min-w-0"><span class="font-black block truncate">' + E(c.name) + '</span><span class="sub mono">' + E(c.phone || '') + ' · ' + c.count + ' فاتورة' + (c.old_balance > 0 ? ' + قديم' : '') + '</span></span>' +
+        '<span class="bad-t font-black mono shrink-0">' + fm(c.total_debt) + '</span></button>').join('')
+        : '<div class="empty"><i class="fa-solid fa-circle-check"></i>مفيش مديونيات مفتوحة 🎉</div>';
+}
+async function openCustomer(name) {
+    CUR = name; renderList();
+    const d = await (await fetch('/api/debt/customer?name=' + encodeURIComponent(name))).json();
+    const inv = d.invoices.map(i => '<tr><td class="mono font-black gold-t">#' + i.token + '</td><td class="sub mono">' + E(i.date.slice(0, 16)) + '</td><td class="mono">' + fm(i.grand_total) + '</td><td class="mono ok-t">' + fm(i.deposit) + '</td><td class="mono bad-t font-black">' + fm(i.remaining) + '</td>' +
+        '<td><button class="btn btn-ok btn-sm" onclick="payInvoice(\'' + i.token + '\',' + i.remaining + ')"><i class="fa-solid fa-money-bill-wave"></i> سداد</button></td></tr>').join('');
+    const hist = d.payments.map(p => '<tr><td class="sub mono" style="white-space:nowrap">' + E(p.date) + '</td><td>' + (KIND[p.kind] || p.kind) + (p.invoice ? ' <span class="mono gold-t">#' + E(p.invoice) + '</span>' : '') + '</td>' +
+        '<td class="mono font-black ' + (p.kind === 'old_balance_add' ? 'bad-t' : 'ok-t') + '">' + (p.kind === 'old_balance_add' ? '+' : '−') + fm(p.amount) + '</td><td class="sub">' + E(p.by) + '</td><td class="sub">' + E(p.note || '') + '</td></tr>').join('');
+    document.getElementById('detail').innerHTML =
+        '<div class="card"><div class="flex flex-wrap items-center gap-3 justify-between"><div><h2 class="font-black text-[17px]">' + E(d.name) + '</h2><div class="sub mono">' + E(d.phone || '') + '</div></div>' +
+        '<div class="grid grid-cols-3 gap-2 text-center"><div class="p-2.5 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">فواتير</div><div class="mono font-black">' + fm(d.invoice_debt) + '</div></div>' +
+        '<div class="p-2.5 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">مديونية قديمة</div><div class="mono font-black">' + fm(d.old_balance) + '</div></div>' +
+        '<div class="p-2.5 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">الإجمالي</div><div class="mono font-black bad-t">' + fm(d.total_debt) + '</div></div></div></div>' +
+        '<div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-4 items-end"><div class="sm:col-span-1"><label class="lbl" for="payAmt">دفعة عامة (ج.م)</label><input id="payAmt" type="number" step="any" min="0" class="inp mono" onkeydown="if(event.key===\'Enter\')payGeneral()"></div>' +
+        '<div class="sm:col-span-2"><label class="lbl" for="payNote">ملاحظة (اختياري)</label><input id="payNote" class="inp" placeholder="مثال: دفع كاش / فودافون كاش"></div>' +
+        '<button class="btn btn-brand" onclick="payGeneral()"><i class="fa-solid fa-circle-check"></i> تسجيل السداد</button></div>' +
+        (d.old_balance > 0 ? '<div class="mt-3"><button class="btn btn-sm" onclick="payOld(' + d.old_balance + ')">سداد من المديونية القديمة فقط</button></div>' : '') + '</div>' +
+        '<div class="card"><div class="card-title"><i class="fa-solid fa-file-invoice"></i> الفواتير غير المسددة</div><div class="overflow-x-auto"><table class="tbl"><thead><tr><th>الفاتورة</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th></th></tr></thead><tbody>' +
+        (inv || '<tr><td colspan="6" class="empty">مفيش فواتير مفتوحة.</td></tr>') + '</tbody></table></div></div>' +
+        '<div class="card"><div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> سجل السداد (بالتاريخ والوقت)</div><div class="overflow-x-auto scroll-y" style="max-height:320px"><table class="tbl"><thead><tr><th>التاريخ والوقت</th><th>العملية</th><th>المبلغ</th><th>بواسطة</th><th>ملاحظة</th></tr></thead><tbody>' +
+        (hist || '<tr><td colspan="5" class="empty">لسه مفيش عمليات سداد.</td></tr>') + '</tbody></table></div></div>';
+}
+async function sendPay(target, amount, note) {
+    const d = await (await fetch('/api/debt/pay', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({customer_name: CUR, amount, target, note})})).json();
+    if (!d.success) return UI.toast(d.message || 'تعذر التسجيل', 'error');
+    UI.toast('تم تسجيل السداد ✅ ' + fm(d.applied) + ' ج', 'success'); if (d.message) UI.toast(d.message, 'warn', 8000);
+    await loadList(true);
+}
+async function payGeneral() {
+    const a = num(document.getElementById('payAmt').value); if (a <= 0) return UI.toast('اكتب مبلغ السداد.', 'error');
+    sendPay('auto', a, document.getElementById('payNote').value);
+}
+async function payOld(max) {
+    const v = await UI.prompt({title: 'سداد من المديونية القديمة', message: 'المتبقي ' + fm(max) + ' ج — اكتب المبلغ:', value: String(max), required: true});
+    if (v === null) return; const a = num(v); if (a > 0) sendPay('old_balance', a, '');
+}
+async function payInvoice(token, rem) {
+    const v = await UI.prompt({title: 'سداد فاتورة #' + token, message: 'المتبقي ' + fm(rem) + ' ج — اكتب المبلغ المدفوع (جزء أو كامل):', value: String(rem), required: true});
+    if (v === null) return; const a = num(v); if (a > 0) sendPay(token, a, '');
+}
+async function addOldBalance() {
+    const name = ob_name.value.trim(), amount = num(ob_amount.value);
+    if (!name || amount <= 0) return UI.toast('اكتب اسم العميل والمبلغ.', 'error');
+    const d = await (await fetch('/api/old_balance/add', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({customer_name: name, phone: ob_phone.value, amount, note: ob_note.value})})).json();
+    if (!d.success) return UI.toast(d.message, 'error');
+    UI.toast('تمت إضافة المديونية القديمة ✅', 'success'); ob_name.value = ob_phone.value = ob_amount.value = ob_note.value = '';
+    await loadList(false); openCustomer(name);
+}
+(async function () {
+    await loadList(false);
+    try { const all = await (await fetch('/api/customers/search')).json(); document.getElementById('allCust').innerHTML = all.map(c => '<option value="' + E(c.name) + '">').join(''); } catch (e) {}
+    const pre = {{ preselect|tojson }}; if (pre) openCustomer(pre);
+})();
+</script>
+</body>
+</html>

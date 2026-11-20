@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>كل الفروع — {{ hq.name }}</title>
+    {{ ui_head() }}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="text-sm">
+<header class="sticky top-0 z-40 flex items-center gap-3 px-4 py-3 flex-wrap" style="background: color-mix(in srgb, var(--ui-surface) 92%, transparent); backdrop-filter: blur(10px); border-bottom:1px solid var(--ui-line)">
+    <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-white" style="background:linear-gradient(135deg,var(--ui-brand),var(--ui-brand2))"><i class="fa-solid fa-store"></i></div>
+    <div><h1 class="font-black text-[16px] leading-tight">لوحة المالك — كل الفروع</h1><p class="sub">{{ hq.name }} · {{ session.get('full_name', '') }}</p></div>
+    <div class="ms-auto flex gap-2 flex-wrap">
+        <button class="btn btn-sm" onclick="toggleTheme()"><i class="fa-solid fa-circle-half-stroke gold-t"></i></button>
+        {% for code, info in langs.items() if code != lang %}<a class="btn btn-sm" href="/lang/{{ code }}">{{ info.name }}</a>{% endfor %}
+        <button class="btn btn-brand btn-sm" onclick="UI.tour(TOUR,{key:'owner_v1'})"><i class="fa-solid fa-circle-question"></i> مساعدة</button>
+        <a href="/logout" class="btn btn-danger btn-sm"><i class="fa-solid fa-power-off"></i> خروج</a>
+    </div>
+</header>
+
+<main class="p-4 lg:p-6 max-w-[1400px] mx-auto space-y-5">
+    <div class="ui-note" data-note-id="owner"><i class="fa-solid fa-lightbulb"></i><div><b>هنا بتتابع كل فرع لوحده:</b> الأرقام الإجمالية فوق، وتحتها كارت لكل فرع. اضغط <b>«فتح لوحة الفرع»</b> عشان تشوف كل بيانات الفرع (فواتير، مخزن، موظفين، مصاريف) وتتحكم فيها. أدمن كل فرع بيشوف فرعه بس.</div></div>
+
+    <div class="grid grid-cols-2 xl:grid-cols-5 gap-4" id="ownerKpis">
+        <div class="card kpi"><div class="sub">مبيعات كل الفروع</div><div class="v mono">{{ '{:,.0f}'.format(totals.sales) }}</div><div class="sub ok-t mt-1">اليوم: {{ '{:,.0f}'.format(totals.today) }}</div></div>
+        <div class="card kpi"><div class="sub">المحصّل</div><div class="v mono ok-t">{{ '{:,.0f}'.format(totals.collected + totals.quick + totals.old_collected) }}</div></div>
+        <div class="card kpi"><div class="sub">المصروفات</div><div class="v mono bad-t">{{ '{:,.0f}'.format(totals.expenses) }}</div></div>
+        <div class="card kpi"><div class="sub">صافي الربح</div><div class="v mono warn-t">{{ '{:,.0f}'.format(totals.net) }}</div></div>
+        <div class="card kpi"><div class="sub">ديون عند العملاء</div><div class="v mono bad-t">{{ '{:,.0f}'.format(totals.debts) }}</div><div class="sub mt-1">{{ totals.invoices }} فاتورة</div></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4" id="branchCards">
+        {% for b in branches %}
+        <div class="card space-y-3">
+            <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0"><h3 class="font-black text-[15px] truncate">{{ b.shop.name }} {% if b.is_hq %}<span class="badge">الرئيسي</span>{% endif %}{% if b.shop.is_suspended %}<span class="badge bad">موقوف</span>{% endif %}</h3>
+                    <div class="sub">{{ b.shop.address or '—' }} · {{ b.shop.phone or '' }}</div></div>
+                <a href="/owner/switch/{{ b.shop.id }}" class="btn btn-brand btn-sm shrink-0"><i class="fa-solid fa-door-open"></i> فتح لوحة الفرع</a>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="p-2.5 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">مبيعات اليوم</div><div class="mono font-black ok-t">{{ '{:,.0f}'.format(b.stats.today) }}</div></div>
+                <div class="p-2.5 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">إجمالي المبيعات</div><div class="mono font-black">{{ '{:,.0f}'.format(b.stats.sales) }}</div></div>
+                <div class="p-2.5 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">الصافي</div><div class="mono font-black warn-t">{{ '{:,.0f}'.format(b.stats.net) }}</div></div>
+                <div class="p-2.5 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">مصروفات</div><div class="mono font-black bad-t">{{ '{:,.0f}'.format(b.stats.expenses) }}</div></div>
+                <div class="p-2.5 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">ديون</div><div class="mono font-black bad-t">{{ '{:,.0f}'.format(b.stats.debts) }}</div></div>
+                <div class="p-2.5 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">فواتير / موظفين</div><div class="mono font-black">{{ b.stats.invoices }} / {{ b.stats.staff }}</div></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <section class="card" id="addBranch">
+        <div class="card-title"><i class="fa-solid fa-code-branch"></i> إضافة فرع جديد
+            <span class="badge ms-auto {{ 'bad' if used >= limit else 'ok' }}">{{ used }} / {{ limit }} فروع</span></div>
+        {% if used >= limit %}
+        <p class="sub">وصلت للحد الأقصى المسموح به في اشتراكك. للمزيد من الفروع تواصل مع الدعم لترقية الخطة.</p>
+        {% else %}
+        <form action="/owner/branch/add" method="POST" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="col-span-2"><label class="lbl">اسم الفرع *</label><input name="name" required class="inp" placeholder="مثال: فرع المعادي"></div>
+            <div><label class="lbl">هاتف الفرع</label><input name="phone" class="inp mono"></div>
+            <div><label class="lbl">العنوان</label><input name="address" class="inp"></div>
+            <div class="col-span-2 md:col-span-4 sub font-bold pt-2">حساب أدمن الفرع (يشوف فرعه بس)</div>
+            <div><label class="lbl">الاسم</label><input name="admin_name" class="inp"></div>
+            <div><label class="lbl">اسم المستخدم *</label><input name="admin_username" required class="inp mono" dir="ltr" autocomplete="off"></div>
+            <div><label class="lbl">كلمة المرور (6+) *</label><input type="password" name="admin_password" required minlength="6" class="inp" dir="ltr" autocomplete="new-password"></div>
+            <div></div>
+            <div class="col-span-2 md:col-span-4 sub font-bold pt-2">حساب كاشير الفرع (اختياري — تقدر تضيف غيره بعدين)</div>
+            <div><label class="lbl">الاسم</label><input name="cashier_name" class="inp"></div>
+            <div><label class="lbl">اسم المستخدم</label><input name="cashier_username" class="inp mono" dir="ltr" autocomplete="off"></div>
+            <div><label class="lbl">كلمة المرور (6+)</label><input type="password" name="cashier_password" minlength="6" class="inp" dir="ltr" autocomplete="new-password"></div>
+            <div></div>
+            <div class="col-span-2"><label class="lbl">نوع نشاط الفرع (يحمّل خدمات جاهزة)</label>
+                <select name="business_type" class="inp">{% for p in presets %}<option value="{{ p.id }}" {{ 'selected' if p.id == hq.business_type }}>{{ p.name }} ({{ p.count }} خدمة)</option>{% endfor %}</select></div>
+            <label class="tgl col-span-2 self-end"><input type="checkbox" name="copy_from_hq" value="1"> انسخ الخدمات والأسعار وتصميم الفاتورة من الفرع الرئيسي بدل القالب</label>
+            <button class="btn btn-brand col-span-2 md:col-span-4" type="submit"><i class="fa-solid fa-plus"></i> إنشاء الفرع وحساباته</button>
+        </form>
+        {% endif %}
+    </section>
+</main>
+<script>
+function toggleTheme() { const c = document.body.classList.toggle('cream-mode'); localStorage.setItem('kiro_theme', c ? 'cream' : 'royal'); }
+if (localStorage.getItem('kiro_theme') === 'cream') document.body.classList.add('cream-mode');
+const TOUR = [
+    {title: 'أهلاً بيك يا صاحب الفروع 👋', text: 'من هنا بتتابع كل فرع لوحده وبتشوف الإجمالي.'},
+    {sel: '#ownerKpis', title: 'الأرقام الإجمالية', text: 'مجموع مبيعات ومصروفات وديون كل الفروع.'},
+    {sel: '#branchCards', title: 'كارت لكل فرع', text: 'اضغط «فتح لوحة الفرع» لتشوف كل تفاصيله وتتحكم فيه.'},
+    {sel: '#addBranch', title: 'إضافة فرع', text: 'أنشئ فرع جديد مع حساب أدمن وحساب كاشير له في خطوة واحدة (حسب عدد الفروع في اشتراكك).'}
+];
+document.addEventListener('DOMContentLoaded', () => UI.tourOnce('owner_v1', TOUR, 900));
+</script>
+</body>
+</html>

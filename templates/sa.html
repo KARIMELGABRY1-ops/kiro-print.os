@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>كيرو — لوحة إدارة المنصة والاشتراكات</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Tajawal', 'Segoe UI', sans-serif; box-sizing: border-box; }
+
+        :root {
+            --theme-bg-gradient: radial-gradient(circle at 10% 15%, rgba(139, 16, 36, 0.3) 0%, transparent 40%),
+                                  radial-gradient(circle at 90% 85%, rgba(223, 200, 176, 0.12) 0%, transparent 45%),
+                                  linear-gradient(150deg, #160104 0%, #29040a 50%, #120103 100%);
+            --theme-bg-color: #1f0307;
+            --text-color: #faf5ef;
+            --subtext-color: #dfc8b0;
+            --glass-bg: rgba(45, 6, 12, 0.5);
+            --glass-border: rgba(223, 200, 176, 0.2);
+            --glass-input: rgba(20, 2, 5, 0.7);
+            --btn-royal-grad: linear-gradient(135deg, #8b1024 0%, #5c0a17 100%);
+        }
+
+        body.cream-mode {
+            --theme-bg-gradient: radial-gradient(circle at 15% 20%, rgba(139, 16, 36, 0.08) 0%, transparent 40%),
+                                  radial-gradient(circle at 85% 80%, rgba(210, 185, 155, 0.25) 0%, transparent 50%),
+                                  linear-gradient(145deg, #fdfbf7 0%, #f4ede4 50%, #ede3d5 100%);
+            --theme-bg-color: #f7f2ea;
+            --text-color: #2b060d;
+            --subtext-color: #630c18;
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: rgba(92, 10, 23, 0.15);
+            --glass-input: rgba(255, 255, 255, 0.95);
+            --btn-royal-grad: linear-gradient(135deg, #7a0c1e 0%, #520612 100%);
+        }
+
+        body {
+            background-color: var(--theme-bg-color);
+            background-image: var(--theme-bg-gradient);
+            color: var(--text-color);
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.35);
+        }
+
+        .glass-input {
+            background: var(--glass-input);
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
+        }
+        .glass-input:focus {
+            outline: none;
+            border-color: #dfc8b0;
+        }
+
+        .btn-royal {
+            background: var(--btn-royal-grad);
+            border: 1px solid rgba(223, 200, 176, 0.35);
+            color: #faf5ef;
+        }
+        .btn-royal:hover { transform: translateY(-1px); }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #8b1024; border-radius: 8px; }
+
+        .tab-btn.active {
+            background: var(--btn-royal-grad);
+            border: 1px solid rgba(223, 200, 176, 0.35);
+            color: #faf5ef;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.25s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 10px; font-weight: 800; }
+        .badge-active { background: rgba(16,185,129,.15); color: #34d399; border: 1px solid rgba(16,185,129,.3); }
+        .badge-grace { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
+        .badge-expired { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+        .badge-none { background: rgba(148,163,184,.15); color: #94a3b8; border: 1px solid rgba(148,163,184,.3); }
+        .badge-suspended { background: rgba(190,18,60,.2); color: #fb7185; border: 1px solid rgba(190,18,60,.4); }
+        .badge-lifetime { background: rgba(223,200,176,.2); color: #dfc8b0; border: 1px solid rgba(223,200,176,.4); }
+    </style>
+    {{ ui_head() }}
+</head>
+<body class="custom-scrollbar pb-12">
+
+    <!-- الهيدر -->
+    <header class="glass-panel sticky top-0 z-40 px-6 py-4 flex flex-wrap justify-between items-center border-b">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#5c0a17] to-[#8b1024] border border-[#dfc8b0]/30 flex items-center justify-center text-white font-black text-lg shadow-lg">K</div>
+            <div>
+                <h1 class="text-sm font-black tracking-wide">منصة كيرو لإدارة المطابع <span class="bg-[#8b1024]/60 text-amber-300 text-[10px] px-2 py-0.5 rounded-full border border-[#dfc8b0]/20 mr-1">Super Admin</span></h1>
+                <p class="text-[11px] opacity-70">إدارة المطابع، الاشتراكات والخطط السحابية</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2.5 flex-wrap">
+            <button onclick="toggleTheme()" id="themeBtn" class="glass-panel px-3 py-2 rounded-xl text-xs font-bold cursor-pointer">
+                <i class="fa-solid fa-palette text-amber-400"></i>
+                <span id="themeBtnText">النهاري (كريمي)</span>
+            </button>
+            <button onclick="openAddShopModal()" class="btn-royal text-xs font-black px-4 py-2 rounded-xl flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-plus text-[10px]"></i> إضافة مطبعة جديدة
+            </button>
+            <a href="/logout" class="bg-red-950/50 hover:bg-red-900 border border-red-500/30 text-red-300 text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5">
+                <i class="fa-solid fa-power-off text-[11px]"></i> خروج
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto px-4 lg:px-8 mt-6 space-y-6">
+        <details class="glass-panel rounded-2xl p-4" {{ 'open' if default_pw }}>
+            <summary class="cursor-pointer text-xs font-black flex items-center gap-2"><i class="fa-solid fa-key text-[#dfc8b0]"></i> تغيير كلمة مرور السوبر أدمن {% if default_pw %}<span class="text-red-300">⚠️ لسه كلمة المرور الافتراضية — غيّرها الآن لحماية المنصة</span>{% endif %}</summary>
+            <form action="/account/password" method="POST" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-3 text-xs">
+                <input type="password" name="current_password" required placeholder="كلمة المرور الحالية" autocomplete="current-password" class="bg-black/30 border border-[#dfc8b0]/20 rounded-xl px-3 py-2">
+                <input type="password" name="new_password" required minlength="6" placeholder="الجديدة (6 أحرف+)" autocomplete="new-password" class="bg-black/30 border border-[#dfc8b0]/20 rounded-xl px-3 py-2">
+                <button class="bg-[#8b1024] border border-[#dfc8b0]/40 text-white font-bold rounded-xl px-4 py-2 cursor-pointer" type="submit">حفظ</button>
+            </form>
+        </details>
+
+        <!-- بطاقات KPI -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+            <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-[#dfc8b0]">
+                <div class="text-[10px] font-bold opacity-70">إجمالي المطابع</div>
+                <div class="text-2xl font-black font-mono mt-1">{{ total_shops }}</div>
+            </div>
+            <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-emerald-500">
+                <div class="text-[10px] font-bold opacity-70">اشتراكات نشطة</div>
+                <div class="text-2xl font-black text-emerald-400 font-mono mt-1">{{ active_shops }}</div>
+            </div>
+            <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-amber-500">
+                <div class="text-[10px] font-bold opacity-70">تنتهي خلال 7 أيام</div>
+                <div class="text-2xl font-black text-amber-400 font-mono mt-1">{{ expiring_soon }}</div>
+            </div>
+            <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-red-500">
+                <div class="text-[10px] font-bold opacity-70">مطابع معلقة</div>
+                <div class="text-2xl font-black text-red-400 font-mono mt-1">{{ suspended }}</div>
+            </div>
+            <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-cyan-500">
+                <div class="text-[10px] font-bold opacity-70">إيراد الشهر</div>
+                <div class="text-xl font-black text-cyan-400 font-mono mt-1">{{ "{:,.0f}".format(revenue_month) }} <span class="text-[9px]">ج.م</span></div>
+            </div>
+            <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-amber-400">
+                <div class="text-[10px] font-bold opacity-70">إجمالي الإيرادات</div>
+                <div class="text-xl font-black text-amber-400 font-mono mt-1">{{ "{:,.0f}".format(revenue_total) }} <span class="text-[9px]">ج.م</span></div>
+            </div>
+            <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-[#8b1024]">
+                <div class="text-[10px] font-bold opacity-70">تراخيص مدى الحياة</div>
+                <div class="text-2xl font-black font-mono mt-1">{{ lifetime_count }}</div>
+            </div>
+        </div>
+
+        <!-- التبويبات -->
+        <div class="glass-panel p-5 rounded-2xl">
+            <div class="flex flex-wrap gap-2 border-b border-[#dfc8b0]/15 pb-3 mb-4">
+                <button class="tab-btn active px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer" data-tab="shops">
+                    <i class="fa-solid fa-store ml-1"></i> المطابع المشتركة
+                </button>
+                <button class="tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer" data-tab="plans">
+                    <i class="fa-solid fa-gem ml-1"></i> الخطط والأسعار
+                </button>
+            </div>
+
+            <!-- تبويب المطابع -->
+            <div id="tab-shops" class="tab-content active">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+                    <h3 class="text-xs font-black"><i class="fa-solid fa-layer-group text-amber-400 ml-1"></i> قائمة المطابع</h3>
+                    <input type="text" id="shopSearchInput" onkeyup="filterShopsTable()" placeholder="🔍 بحث بالاسم أو الهاتف..." class="glass-input rounded-xl py-1.5 px-3 text-xs w-64">
+                </div>
+
+                <div class="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-xs text-right" id="shopsTable">
+                        <thead class="bg-black/40 sticky top-0 border-b border-[#dfc8b0]/15">
+                            <tr>
+                                <th class="p-3">المطبعة</th>
+                                <th class="p-3">المالك / الهاتف</th>
+                                <th class="p-3">حالة الاشتراك</th>
+                                <th class="p-3">الخطة</th>
+                                <th class="p-3">ينتهي في</th>
+                                <th class="p-3 text-center">المستخدمون</th>
+                                <th class="p-3">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#dfc8b0]/10">
+                            {% for r in rows %}
+                            <tr class="hover:bg-white/5 transition-colors">
+                                <td class="p-3">
+                                    <span class="font-bold text-sm">{{ r.shop.name }}</span>
+                                    {% if r.shop.is_suspended %}<span class="badge badge-suspended mr-1">معلقة</span>{% endif %}
+                                    {% if r.shop.parent_id %}<span class="badge mr-1">فرع تابع لـ #{{ r.shop.parent_id }}</span>{% elif (r.shop.max_branches or 1) > 1 %}<span class="badge mr-1">🏢 سلسلة {{ r.branches + 1 }}/{{ r.shop.max_branches }}</span>{% endif %}
+                                    <br><span class="opacity-60 text-[10px] font-mono">ID: {{ r.shop.id }} | انضم: {{ r.shop.created_at.strftime('%Y-%m-%d') if r.shop.created_at else '—' }}</span>
+                                </td>
+                                <td class="p-3">
+                                    <span>{{ r.shop.owner_name or '—' }}</span>
+                                    {% if r.shop.phone %}<br><a href="tel:{{ r.shop.phone }}" class="text-amber-400 text-[11px] font-mono"><i class="fa-solid fa-phone text-[9px]"></i> {{ r.shop.phone }}</a>{% endif %}
+                                    {% if r.shop.address %}<br><span class="opacity-60 text-[10px]">{{ r.shop.address }}</span>{% endif %}
+                                </td>
+                                <td class="p-3">
+                                    {% if r.state == 'active' %}<span class="badge badge-active">✅ نشط</span>
+                                    {% elif r.state == 'grace' %}<span class="badge badge-grace">⚠️ فترة سماح</span>
+                                    {% elif r.state == 'expired' %}<span class="badge badge-expired">❌ منتهي</span>
+                                    {% elif r.state == 'suspended' %}<span class="badge badge-suspended">⛔ معلق</span>
+                                    {% else %}<span class="badge badge-none">⏳ بدون اشتراك</span>{% endif %}
+                                </td>
+                                <td class="p-3">
+                                    {% if r.sub and r.sub.plan %}<span class="font-bold">{{ r.sub.plan.name }}</span>
+                                    {% elif r.sub and r.sub.is_lifetime %}<span class="text-amber-400 font-bold">مدى الحياة</span>
+                                    {% else %}—{% endif %}
+                                    {% if r.sub and r.sub.amount_paid %}<br><span class="opacity-70 text-[10px] font-mono">آخر دفعة: {{ r.sub.amount_paid|round(0) }} ج</span>{% endif %}
+                                </td>
+                                <td class="p-3">
+                                    {% if r.sub and r.sub.is_lifetime %}
+                                        <span class="badge badge-lifetime">👑 دائم</span>
+                                    {% elif r.sub and r.sub.ends_at %}
+                                        <span class="ends-date font-mono font-bold">{{ r.sub.ends_at.strftime('%Y-%m-%d') }}</span>
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td class="p-3 text-center">
+                                    <span class="bg-black/30 border border-[#dfc8b0]/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold">{{ r.users_count }} 👤</span>
+                                </td>
+                                <td class="p-3">
+                                    <div class="flex flex-wrap gap-1.5">
+                                        {% if not r.shop.parent_id %}<button onclick="openRenewModal({{ r.shop.id }}, {{ r.shop.name|tojson|forceescape }})" class="bg-[#8b1024]/40 hover:bg-[#8b1024] border border-[#dfc8b0]/30 px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer">
+                                            <i class="fa-solid fa-rotate"></i> تجديد
+                                        </button>{% endif %}
+                                        {% if not (r.sub and r.sub.is_lifetime) %}
+                                        {% if not r.shop.parent_id %}<button onclick="openLifetimeModal({{ r.shop.id }}, {{ r.shop.name|tojson|forceescape }})" class="bg-amber-900/40 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer">
+                                            <i class="fa-solid fa-crown"></i> دائم
+                                        </button>{% endif %}
+                                        {% endif %}
+                                        <button onclick="openEditShopModal({{ r.shop.id }}, {{ (r.shop.name or '')|tojson|forceescape }}, {{ (r.shop.owner_name or '')|tojson|forceescape }}, {{ (r.shop.phone or '')|tojson|forceescape }}, {{ (r.shop.address or '')|tojson|forceescape }}, {{ r.shop.max_branches or 1 }}, {{ 'true' if r.shop.parent_id else 'false' }})" class="glass-panel px-2 py-1 rounded-lg text-[10px] cursor-pointer">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+                                        <form action="/sa/shops/{{ r.shop.id }}/toggle" method="POST" class="inline" data-confirm="تأكيد تغيير حالة المطبعة؟">
+                                            {% if r.shop.is_suspended %}
+                                            <button type="submit" class="bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold">
+                                                <i class="fa-solid fa-play"></i> تفعيل
+                                            </button>
+                                            {% else %}
+                                            <button type="submit" class="bg-red-950/40 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold">
+                                                <i class="fa-solid fa-pause"></i> تعليق
+                                            </button>
+                                            {% endif %}
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="7" class="text-center opacity-50 py-8">لا توجد مطابع مسجلة بعد</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- تبويب الخطط -->
+            <div id="tab-plans" class="tab-content">
+                <form action="/sa/plans/add" method="POST" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 bg-black/25 border border-[#dfc8b0]/15 p-3.5 rounded-2xl mb-4">
+                    <input type="text" name="name" placeholder="اسم الخطة" required class="glass-input rounded-xl px-3 py-2 text-xs">
+                    <input type="number" step="any" name="price" placeholder="السعر" class="glass-input rounded-xl px-3 py-2 text-xs">
+                    <input type="number" name="duration_days" id="planDaysAdd" placeholder="المدة (أيام)" value="30" class="glass-input rounded-xl px-3 py-2 text-xs">
+                    <input type="number" name="max_cashiers" placeholder="أقصى كاشيرات" value="3" class="glass-input rounded-xl px-3 py-2 text-xs">
+                    <input type="number" min="1" name="max_branches" placeholder="عدد الفروع" value="1" title="عدد الفروع المسموح بها (أكثر من 1 = حساب سلسلة)" class="glass-input rounded-xl px-3 py-2 text-xs">
+                    <div class="flex items-center gap-2 px-2">
+                        <input type="checkbox" name="is_lifetime" value="1" id="planLifetimeAdd" onchange="document.getElementById('planDaysAdd').disabled = this.checked;">
+                        <label for="planLifetimeAdd" class="text-[11px] font-bold">👑 دائم</label>
+                    </div>
+                    <button type="submit" class="btn-royal py-2 rounded-xl text-xs font-bold">إضافة الخطة</button>
+                </form>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {% for p in plans %}
+                    <div class="glass-panel p-4 rounded-2xl border border-[#dfc8b0]/15">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="font-black text-sm">{{ p.name }}</span>
+                                {% if p.is_lifetime %}<span class="badge badge-lifetime mr-1">👑 دائم</span>{% endif %}
+                            </div>
+                            <span class="text-amber-400 font-black text-lg font-mono">{{ "{:,.0f}".format(p.price) }} <span class="text-[9px]">ج.م</span></span>
+                        </div>
+                        <div class="text-[11px] opacity-70 mt-2">
+                            ⏱️ {{ 'مدى الحياة' if p.is_lifetime else p.duration_days ~ ' يوم' }} | 👥 حتى {{ p.max_cashiers }} موظف
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal إضافة مطبعة -->
+    <div id="addShopModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-[#1f0307]/95 border border-[#dfc8b0]/30 rounded-3xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between border-b border-[#dfc8b0]/20 pb-3 mb-4">
+                <h3 class="font-black text-sm flex items-center gap-2"><i class="fa-solid fa-store text-amber-400"></i> إضافة مطبعة جديدة</h3>
+                <button onclick="closeModal('addShopModal')" class="opacity-60 hover:opacity-100 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form action="/sa/shops/add" method="POST" class="space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-bold mb-1">اسم المطبعة *</label>
+                    <input type="text" name="name" required class="w-full glass-input rounded-xl px-3 py-2 font-bold">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold mb-1">اسم المالك</label>
+                        <input type="text" name="owner_name" class="w-full glass-input rounded-xl px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">رقم الهاتف *</label>
+                        <input type="text" name="phone" required placeholder="01xxxxxxxxx" class="w-full glass-input rounded-xl px-3 py-2 font-mono">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">العنوان</label>
+                    <input type="text" name="address" class="w-full glass-input rounded-xl px-3 py-2">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block font-bold mb-1">عدد الفروع المسموح بها <span class="opacity-60 font-normal">(1 = مطبعة واحدة)</span></label><input type="number" min="1" max="50" name="max_branches" value="1" class="w-full glass-input rounded-xl px-3 py-2 font-mono"></div>
+                    <div><label class="block font-bold mb-1">نوع النشاط (يحمّل خدمات جاهزة)</label>
+                        <select name="business_type" class="w-full glass-input rounded-xl px-3 py-2">{% for p in presets %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+                </div>
+                <hr class="border-[#dfc8b0]/15">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold mb-1">اسم مستخدم أدمن المطبعة *</label>
+                        <input type="text" name="username" required class="w-full glass-input rounded-xl px-3 py-2 font-mono" dir="ltr">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">كلمة المرور * (6 حروف+)</label>
+                        <input type="password" name="password" required minlength="6" class="w-full glass-input rounded-xl px-3 py-2 font-mono" dir="ltr">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">خطة الاشتراك الأولية</label>
+                    <select name="plan_id" class="w-full glass-input rounded-xl px-3 py-2 font-bold">
+                        <option value="">— تفعيل دائم يدوي (بدون خطة) —</option>
+                        {% for p in plans %}{% if p.is_active %}
+                        <option value="{{ p.id }}">{{ p.name }} — {{ p.price }} ج.م</option>
+                        {% endif %}{% endfor %}
+                    </select>
+                </div>
+                <div class="flex gap-2 pt-3 justify-end">
+                    <button type="button" onclick="closeModal('addShopModal')" class="glass-panel px-4 py-2 rounded-xl text-xs">إلغاء</button>
+                    <button type="submit" class="btn-royal px-5 py-2 rounded-xl text-xs font-black">إنشاء المطبعة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal تجديد الاشتراك -->
+    <div id="renewModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-[#1f0307]/95 border border-[#dfc8b0]/30 rounded-3xl w-full max-w-md p-6">
+            <div class="flex justify-between border-b border-[#dfc8b0]/20 pb-3 mb-4">
+                <h3 class="font-black text-sm">تجديد اشتراك: <span id="renewShopName" class="text-amber-300"></span></h3>
+                <button onclick="closeModal('renewModal')"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="renewForm" method="POST" class="space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-bold mb-1">الخطة</label>
+                    <select name="plan_id" id="renewPlanSelect" class="w-full glass-input rounded-xl px-3 py-2">
+                        {% for p in plans %}{% if p.is_active %}
+                        <option value="{{ p.id }}">{{ p.name }} — {{ p.price }} ج.م</option>
+                        {% endif %}{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">المبلغ المسجل</label>
+                    <input type="number" step="any" name="amount_paid" class="w-full glass-input rounded-xl px-3 py-2 font-mono font-bold">
+                </div>
+                <div class="flex gap-2 pt-3 justify-end">
+                    <button type="button" onclick="closeModal('renewModal')" class="glass-panel px-4 py-2 rounded-xl">إلغاء</button>
+                    <button type="submit" class="btn-royal px-5 py-2 rounded-xl font-bold">تأكيد التجديد</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal ترخيص مدى الحياة -->
+    <div id="lifetimeModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-[#1f0307]/95 border border-amber-500/40 rounded-3xl w-full max-w-md p-6">
+            <div class="flex justify-between border-b border-[#dfc8b0]/20 pb-3 mb-4">
+                <h3 class="font-black text-sm text-amber-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-crown"></i> ترقية ترخيص دائم: <span id="lifetimeShopName" class="text-white"></span>
+                </h3>
+                <button onclick="closeModal('lifetimeModal')"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="lifetimeForm" method="POST" class="space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-bold mb-1">المبلغ المحصل للترخيص الدائم</label>
+                    <input type="number" step="any" name="amount_paid" placeholder="0" class="w-full glass-input rounded-xl px-3 py-2 font-mono font-bold">
+                </div>
+                <p class="text-[11px] text-amber-200/80 bg-amber-950/40 p-2.5 rounded-xl border border-amber-500/20">
+                    ⚠️ هذا الإجراء سيعطي المطبعة صلاحية استخدام مدى الحياة بدون أي تاريخ انتهاء.
+                </p>
+                <div class="flex gap-2 pt-3 justify-end">
+                    <button type="button" onclick="closeModal('lifetimeModal')" class="glass-panel px-4 py-2 rounded-xl">إلغاء</button>
+                    <button type="submit" class="btn-royal px-5 py-2 rounded-xl font-bold">تأكيد الترخيص الدائم</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal تعديل مطبعة -->
+    <div id="editShopModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel bg-[#1f0307]/95 border border-[#dfc8b0]/30 rounded-3xl w-full max-w-md p-6">
+            <div class="flex justify-between border-b border-[#dfc8b0]/20 pb-3 mb-4">
+                <h3 class="font-black text-sm">تعديل بيانات المطبعة</h3>
+                <button onclick="closeModal('editShopModal')"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="editShopForm" method="POST" class="space-y-3.5 text-xs">
+                <div><label class="block font-bold mb-1">اسم المطبعة</label><input type="text" name="name" id="edit_shop_name" required class="w-full glass-input rounded-xl px-3 py-2"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block font-bold mb-1">المالك</label><input type="text" name="owner_name" id="edit_shop_owner" class="w-full glass-input rounded-xl px-3 py-2"></div>
+                    <div><label class="block font-bold mb-1">الهاتف</label><input type="text" name="phone" id="edit_shop_phone" class="w-full glass-input rounded-xl px-3 py-2 font-mono"></div>
+                </div>
+                <div><label class="block font-bold mb-1">العنوان</label><input type="text" name="address" id="edit_shop_address" class="w-full glass-input rounded-xl px-3 py-2"></div>
+                <div id="editBranchesWrap"><label class="block font-bold mb-1">عدد الفروع المسموح بها</label><input type="number" min="1" max="50" name="max_branches" id="edit_shop_branches" class="w-full glass-input rounded-xl px-3 py-2 font-mono"></div>
+                <div><label class="block font-bold mb-1">إعادة تعيين كلمة مرور الأدمن</label><input type="password" name="admin_password" placeholder="اتركه فارغاً للتجاهل" class="w-full glass-input rounded-xl px-3 py-2 font-mono" dir="ltr"></div>
+                <div class="flex gap-2 pt-3 justify-end">
+                    <button type="button" onclick="closeModal('editShopModal')" class="glass-panel px-4 py-2 rounded-xl">إلغاء</button>
+                    <button type="submit" class="btn-royal px-5 py-2 rounded-xl font-bold">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- جافاسكريبت التحكم -->
+    <script>
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function openAddShopModal() { openModal('addShopModal'); }
+        function openRenewModal(sid, name) {
+            document.getElementById('renewShopName').textContent = name;
+            document.getElementById('renewForm').action = `/sa/shops/${sid}/renew`;
+            openModal('renewModal');
+        }
+        function openLifetimeModal(sid, name) {
+            document.getElementById('lifetimeShopName').textContent = name;
+            document.getElementById('lifetimeForm').action = `/sa/shops/${sid}/lifetime`;
+            openModal('lifetimeModal');
+        }
+        function openEditShopModal(sid, name, owner, phone, address, branches, isBranch) {
+            document.getElementById('edit_shop_branches').value = branches || 1;
+            document.getElementById('editBranchesWrap').style.display = isBranch ? 'none' : '';
+            document.getElementById('editShopForm').action = `/sa/shops/${sid}/edit`;
+            document.getElementById('edit_shop_name').value = name;
+            document.getElementById('edit_shop_owner').value = owner || '';
+            document.getElementById('edit_shop_phone').value = phone || '';
+            document.getElementById('edit_shop_address').value = address || '';
+            openModal('editShopModal');
+        }
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+            });
+        });
+
+        function filterShopsTable() {
+            let f = document.getElementById('shopSearchInput').value.toLowerCase();
+            document.querySelectorAll('#shopsTable tbody tr').forEach(r => {
+                r.style.display = r.innerText.toLowerCase().includes(f) ? '' : 'none';
+            });
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('cream-mode');
+            const isCream = document.body.classList.contains('cream-mode');
+            localStorage.setItem('kiroThemeMode', isCream ? 'cream' : 'royal');
+            document.getElementById('themeBtnText').innerText = isCream ? 'الداكن (ملكي)' : 'النهاري (كريمي)';
+        }
+
+        if (localStorage.getItem('kiroThemeMode') === 'cream') {
+            document.body.classList.add('cream-mode');
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('themeBtnText').innerText = 'الداكن (ملكي)';
+            });
+        }
+    </script>
+</body>
+</html>

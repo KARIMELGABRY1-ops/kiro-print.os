@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الإدارة — {{ press_name }}</title>
+    {{ ui_head() }}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="text-sm">
+
+<div id="sbOverlay" class="fixed inset-0 bg-black/60 z-50 hidden lg:hidden" onclick="toggleSidebar()"></div>
+<div class="flex min-h-screen">
+
+    <!-- ============ القائمة الجانبية ============ -->
+    <aside id="sidebar" class="w-[270px] shrink-0 p-3 z-[55]" style="background: var(--ui-surface); border-inline-end: 1px solid var(--ui-line);">
+        <div class="sticky top-3 flex flex-col" style="max-height: calc(100vh - 24px);">
+            <div class="flex items-center gap-3 px-2 pb-3" style="border-bottom:1px solid var(--ui-line)">
+                <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-white shrink-0" style="background:linear-gradient(135deg,var(--ui-brand),var(--ui-brand2))"><i class="fa-solid fa-print"></i></div>
+                <div class="min-w-0">
+                    <div class="font-black text-[14px] leading-tight truncate">{{ press_name }}</div>
+                    <div class="sub">لوحة تحكم الأدمن</div>
+                </div>
+            </div>
+
+            <nav id="sideNav" class="overflow-y-auto flex-1 py-1" aria-label="الأقسام">
+                <div class="nav-group">الرئيسية</div>
+                <button class="nav-btn" id="btn-tab-dashboard" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i><span>الملخص المالي</span></button>
+                <div class="nav-group">المبيعات</div>
+                <button class="nav-btn" id="btn-tab-invoices" onclick="switchTab('invoices')"><i class="fa-solid fa-receipt"></i><span>الفواتير</span></button>
+                <button class="nav-btn" id="btn-tab-design" onclick="switchTab('design')"><i class="fa-solid fa-palette"></i><span>تصميم الفاتورة</span><span class="nav-new">جديد</span></button>
+                <button class="nav-btn" id="btn-tab-debts" onclick="switchTab('debts')"><i class="fa-solid fa-hand-holding-dollar"></i><span>العملاء والمديونيات</span></button>
+                <div class="nav-group">الأسعار والمخزن</div>
+                <button class="nav-btn" id="btn-tab-services" onclick="switchTab('services')"><i class="fa-solid fa-boxes-stacked"></i><span>الخدمات والمخزون</span></button>
+                <button class="nav-btn" id="btn-tab-bindings" onclick="switchTab('bindings')"><i class="fa-solid fa-book"></i><span>التجليد والتشطيب</span></button>
+                <button class="nav-btn" id="btn-tab-b2b" onclick="switchTab('b2b')"><i class="fa-solid fa-handshake"></i><span>حسابات الوكالات (B2B)</span></button>
+                <div class="nav-group">المالية والفريق</div>
+                <button class="nav-btn" id="btn-tab-expenses" onclick="switchTab('expenses')"><i class="fa-solid fa-coins"></i><span>المصاريف والخزينة</span></button>
+                <button class="nav-btn" id="btn-tab-cashiers" onclick="switchTab('cashiers')"><i class="fa-solid fa-users"></i><span>الموظفون والحسابات</span></button>
+                <div class="nav-group">النظام</div>
+                <button class="nav-btn" id="btn-tab-logs" onclick="switchTab('logs')"><i class="fa-solid fa-shield-halved"></i><span>سجل الرقابة</span></button>
+                <button class="nav-btn" id="btn-tab-settings" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i><span>الإعدادات</span></button>
+            </nav>
+
+            <div class="pt-3 space-y-2" style="border-top:1px solid var(--ui-line)">
+                {% if session.get('role') == 'owner' %}<a href="/owner" class="btn w-full"><i class="fa-solid fa-store gold-t"></i> كل الفروع</a>{% endif %}
+                <a href="/cashier" target="_blank" class="btn btn-brand w-full"><i class="fa-solid fa-cash-register"></i> فتح شاشة الكاشير</a>
+                <div class="flex items-center gap-2 px-1">
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:var(--ui-surface2)"><i class="fa-solid fa-user-shield gold-t text-xs"></i></div>
+                    <div class="min-w-0 flex-1"><div class="text-[12.5px] font-black truncate">{{ session.get('full_name', 'المدير') }}</div><div class="sub" style="font-size:10.5px">أدمن المطبعة</div></div>
+                    <a href="/logout" class="btn btn-danger btn-icon" title="تسجيل الخروج"><i class="fa-solid fa-power-off"></i></a>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ============ المحتوى ============ -->
+    <div class="flex-1 min-w-0 flex flex-col">
+        <header class="sticky top-0 z-40 flex items-center gap-3 px-4 py-3 flex-wrap" style="background: color-mix(in srgb, var(--ui-surface) 92%, transparent); backdrop-filter: blur(10px); border-bottom:1px solid var(--ui-line)">
+            <button class="btn btn-icon mob-only" onclick="toggleSidebar()" aria-label="القائمة"><i class="fa-solid fa-bars"></i></button>
+            <div class="min-w-0">
+                <h2 id="pageTitle" class="font-black text-[16px] leading-tight">الملخص المالي</h2>
+                <p id="pageDesc" class="sub hidden sm:block">أرقام المطبعة لحظة بلحظة</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap ms-auto">
+                <button id="shortageBtn" onclick="triggerShortageAlert()" class="btn btn-sm" style="color:var(--ui-warn)" title="يرسل لصاحب المطبعة على واتساب قائمة الخامات اللي قربت تخلص">
+                    <i class="fa-solid fa-triangle-exclamation"></i> النواقص
+                    {% if low_stock_count > 0 %}<span class="badge bad">{{ low_stock_count }}</span>{% endif %}
+                </button>
+                <a href="/admin/export/excel" class="btn btn-sm" title="تحميل كل الفواتير والبنود ملف إكسيل"><i class="fa-solid fa-file-excel ok-t"></i> إكسيل</a>
+                <a href="/admin/weekly_report" target="_blank" class="btn btn-sm" title="تقرير مالي لآخر 7 أيام للطباعة"><i class="fa-solid fa-chart-line gold-t"></i> تقرير الإغلاق</a>
+                <button id="themeBtn" onclick="toggleTheme()" class="btn btn-sm" title="تبديل بين الوضع الداكن والفاتح"><i class="fa-solid fa-circle-half-stroke gold-t"></i> <span id="themeBtnText">الوضع الفاتح</span></button>
+                {% for code, info in langs.items() if code != lang %}<a class="btn btn-sm" href="/lang/{{ code }}" title="Language">{{ info.name }}</a>{% endfor %}
+                <button id="helpBtn" onclick="startTour()" class="btn btn-brand btn-sm" title="جولة سريعة تشرح لك السيستم"><i class="fa-solid fa-circle-question"></i> مساعدة</button>
+            </div>
+        </header>
+
+        <main class="flex-1 p-4 lg:p-6 space-y-5 max-w-[1500px] w-full mx-auto">
+{% if session.get('role') == 'owner' %}
+<div class="ui-note"><i class="fa-solid fa-store"></i><div>أنت بتتصفح فرع: <b>{{ press_name }}</b> — <a href="/owner" class="underline font-black">العودة لكل الفروع</a></div></div>
+{% endif %}
+
+<!-- ================= 1) الملخص ================= -->
+<section id="tab-dashboard" class="tab-content space-y-5" data-title="الملخص المالي" data-desc="أرقام المطبعة لحظة بلحظة">
+    <div class="ui-note" data-note-id="dash"><i class="fa-solid fa-lightbulb"></i><div><b>أهلاً بيك!</b> من هنا بتتابع المبيعات والخزينة والديون. القائمة اللي على اليمين فيها كل الأقسام — ولو حبيت تتعرف على السيستم اضغط <b>«مساعدة»</b> فوق لجولة سريعة (دقيقة واحدة).</div></div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="kpiGrid">
+        <div class="card kpi"><div class="flex justify-between sub"><span>إجمالي المبيعات</span><i class="fa-solid fa-coins gold-t"></i></div>
+            <div class="v mono">{{ "{:,.2f}".format(total_sales) }}<span class="sub"> ج.م</span></div>
+            <div class="sub mt-1 ok-t">اليوم: {{ "{:,.2f}".format(today_sales) }} ج.م · {{ today_invoices_count }} فاتورة</div></div>
+        <div class="card kpi"><div class="flex justify-between sub"><span>المحصّل فعلياً (الخزينة)</span><i class="fa-solid fa-wallet ok-t"></i></div>
+            <div class="v mono ok-t">{{ "{:,.2f}".format(total_deposit + quick_total + old_collected) }}<span class="sub"> ج.م</span></div>
+            <div class="sub mt-1">فواتير + بيع سريع ({{ "{:,.0f}".format(quick_today) }} اليوم) + سداد قديم</div></div>
+        <div class="card kpi"><div class="flex justify-between sub"><span>المصروفات</span><i class="fa-solid fa-receipt bad-t"></i></div>
+            <div class="v mono bad-t">{{ "{:,.2f}".format(total_expenses) }}<span class="sub"> ج.م</span></div>
+            <div class="sub mt-1">نثريات وخامات وسلف</div></div>
+        <div class="card kpi"><div class="flex justify-between sub"><span>صافي الربح</span><i class="fa-solid fa-sack-dollar warn-t"></i></div>
+            <div class="v mono warn-t">{{ "{:,.2f}".format(net_profit) }}<span class="sub"> ج.م</span></div>
+            <div class="sub mt-1">المحصّل − المصروفات</div></div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/admin?debt=1#invoices" class="card block hover:brightness-110">
+            <div class="sub"><i class="fa-solid fa-hand-holding-dollar bad-t"></i> ديون عند العملاء</div>
+            <div class="v mono bad-t" style="font-size:20px;font-weight:900;margin-top:4px">{{ "{:,.2f}".format(total_remaining) }} ج.م</div>
+            <div class="sub mt-1">اضغط لعرض الفواتير غير المسددة</div></a>
+        <div class="card"><div class="sub"><i class="fa-solid fa-file-invoice gold-t"></i> عدد الفواتير</div>
+            <div class="mono" style="font-size:20px;font-weight:900;margin-top:4px">{{ invoice_count }}</div>
+            <div class="sub mt-1">متوسط الفاتورة: {{ "{:,.2f}".format(avg_invoice_value) }} ج.م</div></div>
+        <div class="card"><div class="sub"><i class="fa-solid fa-user-clock gold-t"></i> مستحقات الموظفين</div>
+            <div class="mono" style="font-size:20px;font-weight:900;margin-top:4px">{{ "{:,.2f}".format(total_cashier_remaining) }} ج.م</div>
+            <div class="sub mt-1">الرواتب + المكافآت − السلف والخصومات</div></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div class="card lg:col-span-8">
+            <div class="card-title"><i class="fa-solid fa-chart-area"></i> المبيعات والمصروفات — آخر 7 أيام</div>
+            <div style="height:260px"><canvas id="adminMainChart"></canvas></div>
+        </div>
+        <div class="lg:col-span-4 space-y-5">
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-fire"></i> الأكثر مبيعاً</div>
+                <div class="space-y-2">
+                    {% for name, total in top_services %}
+                    <div class="flex justify-between items-center p-2.5 rounded-xl" style="background:var(--ui-surface2)"><span class="font-bold text-[12.5px] truncate">{{ name }}</span><span class="mono font-black gold-t">{{ "{:,.0f}".format(total) }} ج</span></div>
+                    {% else %}<div class="empty" style="padding:14px"><i class="fa-regular fa-folder-open"></i>لسه مفيش مبيعات</div>{% endfor %}
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-box-open"></i> خامات قربت تخلص</div>
+                {% for s in low_stock_items[:6] %}
+                <div class="flex justify-between py-1.5 text-[12.5px]"><span class="truncate">{{ s.name }}</span><span class="badge warn mono">{{ '%g' % s.stock }} {{ s.unit_name }}</span></div>
+                {% else %}<div class="sub py-1">كل الخامات في الحد الآمن ✅</div>{% endfor %}
+                {% if low_stock_items|length > 6 %}<button class="btn btn-sm mt-2" onclick="switchTab('services')">عرض الكل ({{ low_stock_items|length }})</button>{% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= 2) الفواتير ================= -->
+<section id="tab-invoices" class="tab-content space-y-4" data-title="الفواتير" data-desc="ابحث، اطبع، عدّل أو احذف أي فاتورة">
+    <div class="ui-note" data-note-id="inv"><i class="fa-solid fa-lightbulb"></i><div><b>تقدر تعدّل أي فاتورة:</b> اضغط زر القلم <i class="fa-solid fa-pen"></i> وغيّر اسم العميل أو البنود أو الأسعار أو الخصم أو المدفوع أو حالة الطلب. كل تعديل بيتسجل في «سجل الرقابة» مع السبب، والمخزن بيتظبط تلقائياً.</div></div>
+
+    <form method="GET" action="/admin#invoices" class="card flex flex-wrap items-end gap-3" data-no-busy>
+        <div class="flex-1 min-w-[200px]"><label class="lbl" for="fq">بحث (رقم الفاتورة / اسم العميل / الهاتف)</label>
+            <input id="fq" type="search" name="q" value="{{ q }}" class="inp" placeholder="اكتب وابحث..."></div>
+        <div><label class="lbl" for="fs">حالة الطلب</label>
+            <select id="fs" name="status" class="inp"><option value="">الكل</option>{% for st in statuses %}<option value="{{ st }}" {{ 'selected' if st == status_f }}>{{ st }}</option>{% endfor %}</select></div>
+        <label class="tgl"><input type="checkbox" name="debt" value="1" {{ 'checked' if debt_only }}> عليها مديونية فقط</label>
+        <button class="btn btn-brand" type="submit"><i class="fa-solid fa-magnifying-glass"></i> بحث</button>
+        {% if q or status_f or debt_only %}<a href="/admin#invoices" class="btn">مسح الفلاتر</a>{% endif %}
+    </form>
+
+    <div class="card overflow-x-auto">
+        <table class="tbl">
+            <thead><tr><th>الكود</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>التاريخ</th><th>إجراءات</th></tr></thead>
+            <tbody>
+            {% for inv in invoices %}
+            <tr>
+                <td class="mono font-black gold-t">#{{ inv.token }}</td>
+                <td><div class="font-bold">{{ inv.customer_name }}</div><div class="sub mono" style="font-size:11px">{{ inv.customer_phone or '' }}</div></td>
+                <td class="mono font-black">{{ '{:,.2f}'.format(inv.grand_total or 0) }}</td>
+                <td class="mono ok-t">{{ '{:,.2f}'.format(inv.deposit or 0) }}</td>
+                <td class="mono">{% if inv.remaining and inv.remaining > 0 %}<span class="bad-t font-black">{{ '{:,.2f}'.format(inv.remaining) }}</span>{% else %}<span class="badge ok">خالص ✓</span>{% endif %}</td>
+                <td><span class="badge">{{ inv.delivery_status }}</span></td>
+                <td class="sub mono" style="font-size:11px;white-space:nowrap">{{ inv.date_str[:16] }}</td>
+                <td><div class="flex gap-1.5">
+                    <a href="/receipt/{{ inv.token }}" target="_blank" class="btn btn-icon" title="عرض وطباعة"><i class="fa-solid fa-print"></i></a>
+                    <button type="button" class="btn btn-icon" title="تعديل الفاتورة" onclick="openInvoiceEditor('{{ inv.token }}')"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" class="btn btn-danger btn-icon" title="حذف" onclick="deleteInvoice('{{ inv.token }}')"><i class="fa-solid fa-trash"></i></button>
+                </div></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8"><div class="empty"><i class="fa-regular fa-file-lines"></i>{% if q or status_f or debt_only %}مفيش فواتير بتطابق البحث.{% else %}لسه مفيش فواتير. أول فاتورة هتعملها من شاشة الكاشير هتظهر هنا.{% endif %}</div></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% if pagination.pages > 1 %}
+        <div class="flex items-center justify-center gap-2 mt-4 flex-wrap">
+            {% set qs = {'q': q, 'status': status_f, 'debt': '1' if debt_only else ''} %}
+            {% if pagination.has_prev %}<a class="btn btn-sm" href="/admin?page={{ pagination.prev_num }}&q={{ q|urlencode }}&status={{ status_f|urlencode }}{{ '&debt=1' if debt_only }}#invoices">السابق</a>{% endif %}
+            <span class="sub">صفحة {{ pagination.page }} من {{ pagination.pages }} — {{ pagination.total }} فاتورة</span>
+            {% if pagination.has_next %}<a class="btn btn-sm" href="/admin?page={{ pagination.next_num }}&q={{ q|urlencode }}&status={{ status_f|urlencode }}{{ '&debt=1' if debt_only }}#invoices">التالي</a>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- ================= 3) تصميم الفاتورة ================= -->
+<section id="tab-design" class="tab-content space-y-4" data-title="تصميم الفاتورة" data-desc="غيّر الشكل والمقاس والبيانات وشوف النتيجة فوراً">
+    <div class="ui-note" data-note-id="design"><i class="fa-solid fa-lightbulb"></i><div><b>إزاي تستخدمها:</b> عدّل أي إعداد من القائمة وهتشوف الفاتورة بتتغير قدامك فوراً على الجنب. لما يعجبك الشكل اضغط <b>«حفظ التصميم»</b> — هيتطبق على كل الفواتير (حتى القديمة). تقدر ترجع للتصميم الأصلي في أي وقت.</div></div>
+
+    <div class="card flex flex-wrap items-center gap-3">
+        <button class="btn btn-brand" id="saveDesignBtn" onclick="saveDesign()"><i class="fa-solid fa-floppy-disk"></i> حفظ التصميم</button>
+        <button class="btn" onclick="resetDesign()"><i class="fa-solid fa-rotate-left"></i> الرجوع للتصميم الأصلي</button>
+        <div class="flex items-center gap-2 ms-auto">
+            <label class="lbl !mb-0" for="prevToken">معاينة على فاتورة:</label>
+            <select id="prevToken" class="inp !w-auto" onchange="schedulePreview()">
+                <option value="">فاتورة تجريبية</option>
+                {% for inv in invoices[:15] %}<option value="{{ inv.token }}">#{{ inv.token }} — {{ inv.customer_name }}</option>{% endfor %}
+            </select>
+            <span id="dirtyBadge" class="badge warn hidden">تغييرات غير محفوظة</span>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        <div class="xl:col-span-5" id="designForm">
+            <details class="acc" open><summary><i class="fa-solid fa-ruler-combined gold-t"></i> المقاس والورق</summary><div class="acc-b grid grid-cols-2 gap-3">
+                <div class="col-span-2"><label class="lbl">مقاس الورق الافتراضي <span class="ui-q" tabindex="0" data-tip="الكاشير يقدر يغيّر المقاس وقت الطباعة، لكن ده المقاس اللي بيظهر أول ما تفتح الفاتورة.">؟</span></label>
+                    <select class="inp" data-k="paper">{% for k, lb in papers.items() %}<option value="{{ k }}">{{ lb }}</option>{% endfor %}</select></div>
+                <div data-when="paper=custom"><label class="lbl">العرض (مم)</label><input type="number" class="inp" data-k="custom_w" min="30" max="400" step="1"></div>
+                <div data-when="paper=custom"><label class="lbl">الطول (مم) <span class="ui-q" tabindex="0" data-tip="اكتب 0 ليبقى الطول تلقائي على قد الفاتورة (مناسب للرول الحراري).">؟</span></label><input type="number" class="inp" data-k="custom_h" min="0" max="800" step="1"></div>
+                <div><label class="lbl">اتجاه الورقة (A4 / A5)</label><select class="inp" data-k="orientation"><option value="portrait">طولي</option><option value="landscape">عرضي</option></select></div>
+                <div><label class="lbl">الهوامش (مم) <span class="ui-q" tabindex="0" data-tip="-1 = حسب نوع الورق تلقائياً.">؟</span></label><input type="number" class="inp" data-k="margin" min="-1" max="30" step="0.5"></div>
+                <div class="col-span-2"><label class="lbl">حجم الخط: <b id="scaleVal">100</b>%</label><input type="range" class="w-full" data-k="scale" min="60" max="180" step="5" oninput="document.getElementById('scaleVal').textContent=this.value"></div>
+            </div></details>
+
+            <details class="acc"><summary><i class="fa-solid fa-font gold-t"></i> الخط والألوان</summary><div class="acc-b grid grid-cols-2 gap-3">
+                <div><label class="lbl">نوع الخط</label><select class="inp" data-k="font">{% for k, lb in fonts.items() %}<option value="{{ k }}">{{ lb }}</option>{% endfor %}</select></div>
+                <div><label class="lbl">سُمك الخط</label><select class="inp" data-k="weight"><option value="normal">عادي</option><option value="bold">عريض</option><option value="black">عريض جداً</option></select></div>
+                <div><label class="lbl">لون النص</label><input type="color" class="inp" data-k="color_text"></div>
+                <div><label class="lbl">لون النص الثانوي</label><input type="color" class="inp" data-k="color_muted"></div>
+                <div><label class="lbl">لون التنبيه (المتبقي)</label><input type="color" class="inp" data-k="color_accent"></div>
+                <div><label class="lbl">خلفية رأس الجدول</label><input type="color" class="inp" data-k="color_head_bg"></div>
+                <div><label class="lbl">لون الخطوط</label><input type="color" class="inp" data-k="color_line"></div>
+                <div><label class="lbl">لون الورقة</label><input type="color" class="inp" data-k="color_paper"></div>
+                <div><label class="lbl">نمط الفواصل</label><select class="inp" data-k="border_style"><option value="dashed">متقطع</option><option value="solid">متصل</option><option value="dotted">نقاط</option><option value="none">بدون</option></select></div>
+                <div><label class="lbl">كثافة الصفوف</label><select class="inp" data-k="row_density"><option value="compact">مضغوط</option><option value="normal">عادي</option><option value="relaxed">مريح</option></select></div>
+                <div class="col-span-2"><p class="sub">💡 للطباعة الحرارية خلّي اللون أسود والخط «عريض» عشان يطلع واضح.</p></div>
+            </div></details>
+
+            <details class="acc"><summary><i class="fa-solid fa-heading gold-t"></i> ترويسة الفاتورة (اللوجو والعنوان)</summary><div class="acc-b grid grid-cols-2 gap-3">
+                <div class="col-span-2"><label class="lbl">اللوجو</label>
+                    <div class="flex items-center gap-3"><img id="logoPrev" alt="" class="h-12 rounded-lg hidden" style="background:#fff"><label class="btn btn-sm" for="logoFile"><i class="fa-solid fa-upload"></i> رفع صورة</label><input type="file" id="logoFile" accept="image/*" class="ui-sr" onchange="onLogoPicked(this)"><button type="button" class="btn btn-danger btn-sm hidden" id="logoDel" onclick="removeLogo()">إزالة</button></div>
+                    <p class="sub mt-1">يفضل صورة بخلفية بيضاء أو شفافة. بتتصغّر تلقائياً.</p></div>
+                <div><label class="lbl">ارتفاع اللوجو (مم)</label><input type="number" class="inp" data-k="logo_size" min="6" max="70"></div>
+                <div><label class="lbl">محاذاة الترويسة</label><select class="inp" data-k="align"><option value="center">وسط</option><option value="right">يمين</option><option value="left">يسار</option></select></div>
+                <div class="col-span-2"><label class="lbl">اسم يظهر بدل اسم المطبعة <span class="ui-q" tabindex="0" data-tip="سيبه فاضي لو عايز اسم المطبعة الأساسي.">؟</span></label><input type="text" class="inp" data-k="title" maxlength="120" placeholder="{{ shop.name if shop else '' }}"></div>
+                <div class="col-span-2"><label class="lbl">العنوان الفرعي</label><input type="text" class="inp" data-k="subtitle" maxlength="120"></div>
+                <div class="col-span-2"><label class="lbl">سطور تحت العنوان (كل سطر لوحده: تليفونات، عنوان، سجل تجاري...)</label><textarea class="inp" rows="3" data-k="header_lines" maxlength="600" placeholder="01012345678 - 01123456789&#10;فيصل - الجيزة"></textarea></div>
+            </div></details>
+
+            <details class="acc"><summary><i class="fa-solid fa-eye gold-t"></i> إيه اللي يظهر في الفاتورة؟</summary><div class="acc-b grid grid-cols-2 gap-x-3" id="showGrid"></div></details>
+
+            <details class="acc"><summary><i class="fa-solid fa-tag gold-t"></i> أسماء الحقول والعناوين</summary><div class="acc-b grid grid-cols-2 gap-3" id="labelsGrid">
+                <div class="col-span-2 sub">غيّر أي كلمة تظهر في الفاتورة (مثلاً «الكاشير المسؤول» ← «الموظف»).</div></div></details>
+
+            <details class="acc"><summary><i class="fa-solid fa-coins gold-t"></i> الأرقام والعملة</summary><div class="acc-b grid grid-cols-2 gap-3">
+                <div><label class="lbl">رمز العملة</label><input type="text" class="inp" data-k="currency" maxlength="12"></div>
+                <div><label class="lbl">عدد الأرقام العشرية</label><select class="inp" data-k="decimals"><option value="0">0 (بدون كسور)</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+            </div></details>
+
+            <details class="acc"><summary><i class="fa-solid fa-shoe-prints gold-t"></i> التذييل والشروط</summary><div class="acc-b grid grid-cols-2 gap-3">
+                <div class="col-span-2"><label class="lbl">رسالة الشكر</label><textarea class="inp" rows="2" data-k="footer_text" maxlength="300"></textarea></div>
+                <div class="col-span-2"><label class="lbl">سطور إضافية في الآخر (كل سطر لوحده)</label><textarea class="inp" rows="2" data-k="footer_lines" maxlength="400" placeholder="واتساب: 01012345678"></textarea></div>
+                <div class="col-span-2"><label class="lbl">الشروط والأحكام</label><textarea class="inp" rows="3" data-k="terms" maxlength="1500" placeholder="البضاعة المباعة لا ترد ولا تستبدل بعد 3 أيام..."></textarea></div>
+                <div class="col-span-2"><label class="lbl">سطر الشعار السفلي</label><input type="text" class="inp" data-k="brand_text" maxlength="160"></div>
+                <div><label class="lbl">حجم كود QR (مم)</label><input type="number" class="inp" data-k="qr_size" min="12" max="60"></div>
+                <div><label class="lbl">خانات التوقيع</label><select class="inp" data-k="signatures"><option value="auto">تلقائي (A4 و A5 فقط)</option><option value="on">دايماً</option><option value="off">أبداً</option></select></div>
+            </div></details>
+        </div>
+
+        <div class="xl:col-span-7 xl:sticky xl:top-[84px]">
+            <div class="card !p-3">
+                <div class="flex items-center justify-between px-2 pb-2"><span class="font-black text-[13px]"><i class="fa-solid fa-eye gold-t"></i> معاينة حية</span><span class="sub">بتتحدث تلقائياً مع كل تعديل</span></div>
+                <iframe name="previewFrame" id="previewFrame" title="معاينة الفاتورة" class="w-full rounded-xl" style="height:78vh;min-height:520px;border:1px solid var(--ui-line);background:#d9d6d2"></iframe>
+                <form id="previewForm" method="POST" action="/admin/invoice-settings/preview" target="previewFrame" class="hidden" data-no-busy>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="settings" id="pvSettings"><input type="hidden" name="token" id="pvToken">
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= 4) الخدمات ================= -->
+<section id="tab-services" class="tab-content space-y-4" data-title="الخدمات والمخزون" data-desc="الأسعار والخامات وحد الطلب">
+    <div class="ui-note" data-note-id="srv"><i class="fa-solid fa-lightbulb"></i><div><b>ملاحظات سريعة:</b> الخدمة اللي مالهاش مخزن اترك خانة الرصيد فاضية (غير محدود). لو الخدمة بتتحسب بالمتر (بنر مثلاً) فعّل «حساب بالمتر» واكتب سعر المتر. علّم الخدمات المفضلة ⭐ لتظهر كأزرار سريعة عند الكاشير.</div></div>
+
+    <details class="card" {{ 'open' if not services }}>
+        <summary class="cursor-pointer font-black text-[14px] flex items-center gap-2"><i class="fa-solid fa-circle-plus gold-t"></i> إضافة خدمة أو خامة جديدة</summary>
+        <form action="/admin/service/add" method="POST" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+            <div class="col-span-2"><label class="lbl">الاسم *</label><input name="name" required class="inp" placeholder="مثال: طباعة ملونة A4"></div>
+            <div><label class="lbl">سعر التكلفة</label><input type="number" step="any" min="0" name="cost_price" class="inp"></div>
+            <div><label class="lbl">سعر القطاعي *</label><input type="number" step="any" min="0" name="price_reg" required class="inp"></div>
+            <div><label class="lbl">سعر الجملة <span class="ui-q" tabindex="0" data-tip="بيتطبق تلقائياً لما الكمية توصل لحد الجملة.">؟</span></label><input type="number" step="any" min="0" name="price_bulk" class="inp"></div>
+            <div><label class="lbl">حد الجملة (كمية)</label><input type="number" step="any" min="0" name="bulk_threshold" class="inp"></div>
+            <div><label class="lbl">الرصيد بالمخزن <span class="ui-q" tabindex="0" data-tip="سيبه فاضي = غير محدود (لا يتم خصم كميات).">؟</span></label><input type="number" step="any" name="stock" class="inp" placeholder="فاضي = غير محدود"></div>
+            <div><label class="lbl">حد الطلب <span class="ui-q" tabindex="0" data-tip="لما الرصيد ينزل لهذا الرقم تظهر الخامة في «النواقص».">؟</span></label><input type="number" step="any" min="0" name="threshold" value="10" class="inp"></div>
+            <div><label class="lbl">الوحدة</label><input name="unit_name" value="بالقطعة" class="inp"></div>
+            <div><label class="lbl">سعر المتر المربع</label><input type="number" step="any" min="0" name="price_per_sqm" class="inp"></div>
+            <label class="tgl"><input type="checkbox" name="is_measurement_based" value="1"> حساب بالمتر (م²)</label>
+            <label class="tgl"><input type="checkbox" name="is_banner" value="1"> بنر / يافطة</label>
+            <label class="tgl"><input type="checkbox" name="is_favorite" value="1"> مفضلة ⭐</label>
+            <button class="btn btn-brand col-span-2 md:col-span-4" type="submit"><i class="fa-solid fa-plus"></i> إضافة</button>
+        </form>
+    </details>
+
+    <div class="card">
+        <div class="flex items-center gap-3 mb-3 flex-wrap"><input type="search" class="inp !w-64" placeholder="ابحث في الخدمات..." oninput="filterRows('svcTable', this.value)"><span class="sub">{{ services|length }} خدمة</span></div>
+        <div class="overflow-x-auto"><table class="tbl" id="svcTable">
+            <thead><tr><th>الاسم</th><th>التكلفة</th><th>قطاعي</th><th>جملة</th><th>المخزون</th><th>سعر المتر</th><th>إجراءات</th></tr></thead>
+            <tbody>
+            {% for s in services %}
+            {% set low = s.stock >= 0 and s.stock <= s.threshold %}
+            <tr>
+                <td class="font-bold">{{ s.name }} {% if s.is_favorite %}⭐{% endif %}{% if s.is_measurement_based %}<span class="badge">بالمتر</span>{% endif %}{% if s.is_banner %}<span class="badge">بنر</span>{% endif %}</td>
+                <td class="mono sub">{{ '%g' % s.cost_price }}</td>
+                <td class="mono font-black gold-t">{{ '%g' % s.price_reg }}</td>
+                <td class="mono">{{ '%g' % s.price_bulk }}</td>
+                <td class="mono">{% if s.stock < 0 %}<span class="sub">غير محدود</span>{% else %}<span class="badge {{ 'bad' if low else 'ok' }}">{{ '%g' % s.stock }} {{ s.unit_name }}</span>{% endif %}</td>
+                <td class="mono">{{ '%g' % s.price_per_sqm }}</td>
+                <td><div class="flex gap-1.5">
+                    <button class="btn btn-icon" title="تعديل" onclick='openServiceEdit({{ {"id": s.id, "name": s.name, "cost_price": s.cost_price, "price_reg": s.price_reg, "price_bulk": s.price_bulk, "bulk_threshold": s.bulk_threshold, "stock": s.stock, "threshold": s.threshold, "unit_name": s.unit_name, "price_per_sqm": s.price_per_sqm, "is_banner": s.is_banner, "is_favorite": s.is_favorite, "is_measurement_based": s.is_measurement_based}|tojson }})'><i class="fa-solid fa-pen"></i></button>
+                    <form action="/admin/service/delete/{{ s.id }}" method="POST" data-confirm="هتتحذف «{{ s.name }}» من القائمة. الفواتير القديمة مش هتتأثر." data-danger data-confirm-title="حذف خدمة" data-confirm-ok="احذف"><button class="btn btn-danger btn-icon" title="حذف"><i class="fa-solid fa-trash"></i></button></form>
+                </div></td>
+            </tr>
+            {% else %}<tr><td colspan="7"><div class="empty"><i class="fa-solid fa-box-open"></i>لسه مضفتش أي خدمة. ابدأ من «إضافة خدمة» فوق.</div></td></tr>{% endfor %}
+            </tbody></table></div>
+    </div>
+</section>
+
+<!-- ================= 5) العملاء والمديونيات ================= -->
+<section id="tab-debts" class="tab-content space-y-4" data-title="العملاء والمديونيات" data-desc="الديون المفتوحة والعملاء المتميزين">
+    <div class="ui-note" data-note-id="debts"><i class="fa-solid fa-lightbulb"></i><div>هنا تلاقي كل عميل عليه فلوس، وتقدر <b>تسجّل سداد</b> أو تبعتله <b>تذكير واتساب</b>. العميل المتميز (VIP) بيتحط له خصم تلقائي لما الكاشير يكتب اسمه.</div></div>
+
+    <div class="card">
+        <div class="card-title"><i class="fa-solid fa-hand-holding-dollar"></i> العملاء اللي عليهم مديونية</div>
+        <div class="overflow-x-auto"><table class="tbl"><thead><tr><th>العميل</th><th>الهاتف</th><th>عدد الفواتير</th><th>المتبقي</th><th>إجراءات</th></tr></thead><tbody id="debtorsBody"><tr><td colspan="5" class="empty">جاري التحميل...</td></tr></tbody></table></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><i class="fa-solid fa-address-book"></i> كل العملاء <span class="sub">(بيتسجلوا تلقائياً مع الفواتير)</span> <a href="/cashier/debts" target="_blank" class="btn btn-brand btn-sm ms-auto"><i class="fa-solid fa-hand-holding-dollar"></i> صفحة سداد المديونيات</a></div>
+        <input type="search" class="inp !w-64 mb-3" placeholder="ابحث عن عميل..." oninput="filterRows('custTable', this.value)">
+        <div class="overflow-x-auto scroll-y" style="max-height:420px"><table class="tbl" id="custTable"><thead><tr><th>العميل</th><th>الهاتف</th><th>فواتير</th><th>المشتريات</th><th>الفئة</th><th>مديونية قديمة</th></tr></thead><tbody>
+        {% for c in customers %}<tr><td class="font-bold">{{ c.name }}</td><td class="mono sub">{{ c.phone }}</td><td class="mono">{{ c.invoices_count }}</td><td class="mono">{{ '{:,.0f}'.format(c.total_spent) }}</td>
+            <td>{% if tiers_map[c.id] %}<span class="badge ok">👑 {{ tiers_map[c.id] }}</span>{% else %}<span class="sub">—</span>{% endif %}</td>
+            <td class="mono">{% if c.old_balance > 0 %}<a class="bad-t font-black underline" target="_blank" href="/cashier/debts?c={{ c.name|urlencode }}">{{ '{:,.0f}'.format(c.old_balance) }}</a>{% else %}<span class="sub">—</span>{% endif %}</td></tr>
+        {% else %}<tr><td colspan="6"><div class="empty"><i class="fa-regular fa-address-book"></i>لسه مفيش عملاء — هيتسجلوا تلقائياً مع أول فاتورة.</div></td></tr>{% endfor %}
+        </tbody></table></div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card"><div class="card-title"><i class="fa-solid fa-crown"></i> تسجيل عميل متميز يدوياً (VIP)</div>
+            <form action="/admin/customer/add" method="POST" class="grid grid-cols-2 gap-3">
+                <div class="col-span-2"><label class="lbl">اسم العميل *</label><input name="name" required class="inp"></div>
+                <div><label class="lbl">رقم الهاتف</label><input name="phone" class="inp mono"></div>
+                <div><label class="lbl">نسبة الخصم % *</label><input type="number" step="any" min="0" max="100" name="discount_percentage" required class="inp"></div>
+                <div class="col-span-2"><label class="lbl">الرتبة</label><input name="tier_name" value="VIP" class="inp"></div>
+                <button class="btn btn-brand col-span-2" type="submit">حفظ العميل</button></form></div>
+        <div class="card"><div class="card-title"><i class="fa-solid fa-users"></i> العملاء المتميزون</div>
+            <div class="space-y-2 scroll-y" style="max-height:340px">
+            {% for c in premium_customers %}
+            <div class="flex justify-between items-center p-3 rounded-xl gap-2" style="background:var(--ui-surface2)">
+                <div class="min-w-0"><div class="font-bold truncate">{{ c.name }}</div><div class="sub mono">{{ c.phone }}</div></div>
+                <div class="text-left shrink-0"><div class="gold-t font-black">خصم {{ '%g' % c.discount_percentage }}%</div><div class="sub">{{ c.tier_name }}</div></div>
+                <div class="flex gap-1.5 shrink-0">
+                    <button class="btn btn-icon btn-sm" title="تعديل" onclick='openCustomerEdit({{ {"id": c.id, "name": c.name, "phone": c.phone, "discount_percentage": c.discount_percentage, "tier_name": c.tier_name}|tojson }})'><i class="fa-solid fa-pen"></i></button>
+                    <form action="/admin/customer/{{ c.id }}/delete" method="POST" data-confirm="حذف العميل «{{ c.name }}» من قائمة المتميزين؟" data-danger><button class="btn btn-danger btn-icon btn-sm"><i class="fa-solid fa-trash"></i></button></form>
+                </div></div>
+            {% else %}<div class="empty"><i class="fa-regular fa-star"></i>لسه مفيش عملاء متميزين.</div>{% endfor %}
+            </div></div>
+    </div>
+</section>
+
+<!-- ================= 6) B2B ================= -->
+<section id="tab-b2b" class="tab-content space-y-4" data-title="حسابات الوكالات (B2B)" data-desc="الحساب الجاري المتبادل مع المطابع والوكالات الشريكة">
+    <div class="ui-note" data-note-id="b2b"><i class="fa-solid fa-lightbulb"></i><div>سجّل الوكالة أو المطبعة الشريكة، وبعدها قيّد أي شغل بينكم: <b>«طبعنا عنده»</b> يزوّد اللي ليك، <b>«طبع عندنا»</b> يزوّد اللي عليك، و<b>«تسوية»</b> لما تدفعوا لبعض. الرصيد بيتحسب لوحده.</div></div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card"><div class="card-title"><i class="fa-solid fa-handshake"></i> إضافة شريك</div>
+            <div class="space-y-3"><div><label class="lbl" for="b2b_name">الاسم *</label><input id="b2b_name" class="inp"></div>
+            <div><label class="lbl" for="b2b_phone">الهاتف</label><input id="b2b_phone" class="inp mono"></div>
+            <div><label class="lbl" for="b2b_notes">ملاحظات</label><input id="b2b_notes" class="inp"></div>
+            <button class="btn btn-brand w-full" onclick="addB2BPartner()">تسجيل الشريك</button></div></div>
+        <div class="card lg:col-span-2"><div class="card-title"><i class="fa-solid fa-right-left"></i> قيد حركة</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div><label class="lbl">الشريك</label><select id="b2b_partner_select" class="inp"><option value="">— اختر —</option>{% for p in b2b_partners %}<option value="{{ p.id }}">{{ p.partner_name }}</option>{% endfor %}</select></div>
+                <div><label class="lbl">نوع الحركة</label><select id="b2b_trans_type" class="inp"><option value="take">طبعنا عنده (يزيد اللي لنا طرفه)</option><option value="give">طبع عندنا (يزيد اللي له طرفنا)</option><option value="settle">تسوية / دفعة</option></select></div>
+                <div><label class="lbl">المبلغ (ج.م)</label><input type="number" step="any" min="0" id="b2b_amount" class="inp mono"></div>
+                <div class="sm:col-span-2"><label class="lbl">البيان</label><input id="b2b_desc" class="inp" placeholder="مثال: طباعة 10 رول أب"></div>
+                <div class="flex items-end"><button class="btn btn-brand w-full" onclick="submitB2BTransaction()">قيد الحركة</button></div></div></div>
+    </div>
+    <div class="card"><div class="card-title"><i class="fa-solid fa-scale-balanced"></i> الأرصدة</div>
+        <div class="overflow-x-auto"><table class="tbl"><thead><tr><th>الشريك</th><th>الهاتف</th><th>الرصيد</th><th>الموقف</th><th>إجراءات</th></tr></thead><tbody id="b2bBody"><tr><td colspan="5" class="empty">جاري التحميل...</td></tr></tbody></table></div></div>
+</section>
+
+<!-- ================= 7) المصاريف ================= -->
+<section id="tab-expenses" class="tab-content space-y-4" data-title="المصاريف والخزينة" data-desc="كل ما يخرج من الخزينة">
+    <div class="ui-note" data-note-id="exp"><i class="fa-solid fa-lightbulb"></i><div>أي مصروف بتسجله هنا بيتخصم من صافي الربح في الملخص المالي. السلف اللي بتديها للموظفين بتتسجل هنا تلقائياً.</div></div>
+    <div class="card"><div class="card-title"><i class="fa-solid fa-coins"></i> قيد مصروف جديد</div>
+        <form action="/admin/expense/add" method="POST" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div class="sm:col-span-2"><label class="lbl">البيان *</label><input name="title" required class="inp" placeholder="مثال: فاتورة كهرباء"></div>
+            <div><label class="lbl">المبلغ (ج.م) *</label><input type="number" step="any" min="0" name="amount" required class="inp mono"></div>
+            <div><label class="lbl">ملاحظات</label><input name="notes" class="inp"></div>
+            <button class="btn btn-brand sm:col-span-4" type="submit"><i class="fa-solid fa-plus"></i> قيد المصروف</button></form></div>
+    <div class="card"><div class="overflow-x-auto"><table class="tbl"><thead><tr><th>البيان</th><th>المبلغ</th><th>المسؤول</th><th>التاريخ</th><th></th></tr></thead><tbody>
+        {% for e in expenses %}<tr><td class="font-bold">{{ e.title }}{% if e.notes %}<div class="sub">{{ e.notes }}</div>{% endif %}</td><td class="mono bad-t font-black">{{ '{:,.2f}'.format(e.amount) }}</td><td>{{ e.cashier_name or e.created_by }}</td><td class="sub mono">{{ e.date_str }}</td>
+        <td><form action="/admin/expense/delete/{{ e.id }}" method="POST" data-confirm="حذف مصروف «{{ e.title }}»؟ هيرجع المبلغ لصافي الربح." data-danger><button class="btn btn-danger btn-icon"><i class="fa-solid fa-trash"></i></button></form></td></tr>
+        {% else %}<tr><td colspan="5"><div class="empty"><i class="fa-solid fa-wallet"></i>مفيش مصاريف مسجلة.</div></td></tr>{% endfor %}</tbody></table></div></div>
+</section>
+
+<!-- ================= 8) الموظفون ================= -->
+<section id="tab-cashiers" class="tab-content space-y-4" data-title="الموظفون والحسابات" data-desc="الحسابات والرواتب وكروت الدخول بالباركود">
+    <div class="ui-note" data-note-id="staff"><i class="fa-solid fa-lightbulb"></i><div>كل موظف بيدخل بيوزر نيم وباسورد خاصين بيه. «كاشير» يشتغل على شاشة الكاشير، و«مشرف» نفس الصلاحية. السلف والمكافآت والخصومات بتتحسب في صافي الراتب، وتقدر <b>تقفل الشهر</b> وتصفّرها.</div></div>
+    <details class="card" {{ 'open' if cashiers|length <= 1 }}><summary class="cursor-pointer font-black text-[14px] flex items-center gap-2"><i class="fa-solid fa-user-plus gold-t"></i> إضافة موظف جديد</summary>
+        <form action="/admin/cashier/add" method="POST" class="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
+            <div class="col-span-2"><label class="lbl">الاسم الكامل *</label><input name="full_name" required class="inp"></div>
+            <div><label class="lbl">اسم المستخدم *</label><input name="username" required class="inp mono" dir="ltr" autocomplete="off"></div>
+            <div><label class="lbl">كلمة المرور (6+) *</label><input type="password" name="password" required minlength="6" class="inp mono" dir="ltr" autocomplete="new-password"></div>
+            <div><label class="lbl">الراتب الأساسي</label><input type="number" step="any" min="0" name="base_salary" class="inp mono"></div>
+            <div><label class="lbl">الوظيفة</label><select name="role" class="inp"><option value="cashier">كاشير</option><option value="supervisor">مشرف</option></select></div>
+            <button class="btn btn-brand col-span-2 md:col-span-4 self-end" type="submit">إنشاء الحساب</button></form></details>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {% for c in cashiers %}
+        <div class="card space-y-3">
+            <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0"><div class="font-black text-[15px]">{{ c.full_name }} {% if not c.is_active %}<span class="badge bad">موقوف</span>{% endif %}</div>
+                    <div class="sub">@{{ c.username }} · <span class="gold-t font-bold">{{ {'shop_admin': 'أدمن', 'cashier': 'كاشير', 'supervisor': 'مشرف'}.get(c.role, c.role) }}</span></div></div>
+                <div class="flex gap-1.5 flex-wrap justify-end">
+                    
+                    <button class="btn btn-sm btn-icon" title="تعديل" onclick='openCashierEdit({{ {"id": c.id, "full_name": c.full_name, "username": c.username, "role": c.role, "base_salary": c.base_salary, "is_active": c.is_active}|tojson }})'><i class="fa-solid fa-pen"></i></button>
+                </div></div>
+            {% set net = (c.base_salary or 0) + (c.bonus or 0) - (c.advances or 0) - (c.deductions or 0) %}
+            <div class="grid grid-cols-4 gap-2 text-center">
+                <div class="p-2 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">الأساسي</div><div class="mono font-black">{{ '%g' % c.base_salary }}</div></div>
+                <div class="p-2 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">مكافآت</div><div class="mono font-black ok-t">{{ '%g' % (c.bonus or 0) }}</div></div>
+                <div class="p-2 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">سلف/خصم</div><div class="mono font-black bad-t">{{ '%g' % ((c.advances or 0) + (c.deductions or 0)) }}</div></div>
+                <div class="p-2 rounded-xl" style="background:var(--ui-surface2)"><div class="sub">الصافي</div><div class="mono font-black gold-t">{{ '%g' % net }}</div></div></div>
+            <form action="/admin/cashier/log_action" method="POST" class="grid grid-cols-5 gap-2 pt-3" style="border-top:1px solid var(--ui-line)">
+                <input type="hidden" name="cashier_id" value="{{ c.id }}">
+                <select name="action_type" class="inp col-span-2" aria-label="نوع الحركة"><option value="سلفة">سلفة</option><option value="مكافأة">مكافأة</option><option value="خصم">خصم</option></select>
+                <input type="number" step="any" min="0" name="amount" required placeholder="المبلغ" class="inp mono col-span-2" aria-label="المبلغ">
+                <button class="btn btn-brand" type="submit">قيد</button></form>
+            <div class="flex gap-2 flex-wrap">
+                <form action="/admin/cashier/{{ c.id }}/reset_payroll" method="POST" data-confirm="هيتم تصفير المكافآت والسلف والخصومات لـ {{ c.full_name }} (إقفال الشهر). الراتب الأساسي مش هيتغير." data-confirm-title="إقفال الشهر"><button class="btn btn-sm"><i class="fa-solid fa-calendar-check"></i> إقفال الشهر</button></form>
+                
+                {% if c.role != 'shop_admin' %}<form action="/admin/cashier/delete/{{ c.id }}" method="POST" data-confirm="حذف حساب «{{ c.full_name }}» نهائياً؟ فواتيره القديمة هتفضل موجودة." data-danger data-confirm-title="حذف موظف" data-confirm-ok="احذف"><button class="btn btn-danger btn-sm"><i class="fa-solid fa-trash"></i> حذف</button></form>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- ================= 9) التجليد ================= -->
+<section id="tab-bindings" class="tab-content space-y-4" data-title="التجليد والتشطيب" data-desc="أساليب التجليد وخدمات التشطيب الثابتة اللي يختار منها الكاشير">
+    <div class="ui-note" data-note-id="bind"><i class="fa-solid fa-lightbulb"></i><div>أسعار التجليد هنا بتظهر في قائمة «حاسبة المذكرات» عند الكاشير، والسعر بيتضاف لكل نسخة.</div></div>
+    <div class="card"><div class="card-title"><i class="fa-solid fa-book"></i> إضافة أسلوب تجليد</div>
+        <form action="/admin/binding/add" method="POST" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div><label class="lbl">النوع *</label><input name="name" required class="inp" placeholder="سلك عادي، حراري..."></div>
+            <div><label class="lbl">السعر للوحدة (ج.م) *</label><input type="number" step="any" min="0" name="price_per_unit" required class="inp mono"></div>
+            <button class="btn btn-brand self-end" type="submit">إضافة</button></form></div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {% for b in bindings %}<div class="card !p-3 flex items-center justify-between gap-2"><div class="min-w-0"><div class="font-bold truncate">{{ b.name }}</div><div class="mono gold-t font-black">{{ '%g' % b.price_per_unit }} ج.م</div></div>
+            <div class="flex gap-1.5"><button class="btn btn-icon btn-sm" title="تعديل" onclick='openBindingEdit({{ {"id": b.id, "name": b.name, "price_per_unit": b.price_per_unit}|tojson }})'><i class="fa-solid fa-pen"></i></button>
+            <form action="/admin/binding/{{ b.id }}/delete" method="POST" data-confirm="حذف أسلوب «{{ b.name }}»؟" data-danger><button class="btn btn-danger btn-icon btn-sm"><i class="fa-solid fa-trash"></i></button></form></div></div>
+        {% else %}<div class="empty sm:col-span-3"><i class="fa-solid fa-book-open"></i>لسه مفيش أساليب تجليد.</div>{% endfor %}
+    </div>
+    <div class="card" id="finishingCard"><div class="card-title"><i class="fa-solid fa-wand-magic-sparkles"></i> خدمات التشطيب الثابتة</div>
+        <p class="sub mb-3">أضف خدمة (مثلاً: سولفان، قص، تجليد) وحدد سعرها، وهتظهر للكاشير في قائمة «خدمات تشطيب إضافية» يختارها بضغطة. الكاشير كمان يقدر يضيف خدمة يدوية بسعر يحدده.</p>
+        <form action="/admin/finishing/add" method="POST" class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
+            <div class="sm:col-span-2"><label class="lbl">اسم الخدمة *</label><input name="name" required class="inp" placeholder="مثال: سولفان لامع"></div>
+            <div><label class="lbl">السعر (ج.م) *</label><input type="number" step="any" min="0" name="price" required class="inp mono"></div>
+            <button class="btn btn-brand self-end" type="submit">إضافة</button></form>
+        <div class="space-y-2">
+        {% for f in finishing %}
+        <form action="/admin/finishing/{{ f.id }}/edit" method="POST" class="grid grid-cols-12 gap-2 items-center p-2.5 rounded-xl" style="background:var(--ui-surface2)">
+            <input name="name" value="{{ f.name }}" required class="inp col-span-5" aria-label="الاسم">
+            <input name="price" type="number" step="any" min="0" value="{{ '%g' % f.price }}" class="inp mono col-span-3" aria-label="السعر">
+            <label class="tgl col-span-2"><input type="checkbox" name="is_active" value="1" {{ 'checked' if f.is_active }}> ظاهرة</label>
+            <div class="col-span-2 flex gap-1.5 justify-end"><button class="btn btn-icon btn-sm" title="حفظ"><i class="fa-solid fa-floppy-disk"></i></button>
+            <button class="btn btn-danger btn-icon btn-sm" type="button" title="حذف" data-del-url="/admin/finishing/{{ f.id }}/delete" data-del-name="{{ f.name }}" onclick="confirmPost(this)"><i class="fa-solid fa-trash"></i></button></div>
+        </form>
+        {% else %}<div class="empty"><i class="fa-solid fa-wand-magic-sparkles"></i>لسه مفيش خدمات تشطيب. جرّب «تطبيق قالب نشاط» من الإعدادات لتحميل مجموعة جاهزة.</div>{% endfor %}
+        </div></div>
+</section>
+
+<!-- ================= 10) الرقابة ================= -->
+<section id="tab-logs" class="tab-content space-y-4" data-title="سجل الرقابة" data-desc="كل تعديل وحذف بيتسجل هنا بالاسم والسبب">
+    <div class="ui-note" data-note-id="logs"><i class="fa-solid fa-lightbulb"></i><div>السجل ده لا يمكن تعديله — بيساعدك تعرف مين عدّل أو حذف فاتورة ولماذا.</div></div>
+    <div class="card"><input type="search" class="inp !w-72 mb-3" placeholder="ابحث في السجل..." oninput="filterRows('logList', this.value)">
+        <div id="logList" class="space-y-2 scroll-y">
+        {% for l in logs %}<div class="p-3 rounded-xl text-[12.5px]" style="background:var(--ui-surface2)" data-row>
+            <div class="flex justify-between font-black"><span class="bad-t">{{ l.action }}</span><span class="sub mono">{{ l.timestamp.strftime('%Y-%m-%d %H:%M') if l.timestamp else '' }}</span></div>
+            <div>بواسطة: <b>{{ l.action_by }}</b>{% if l.invoice_token %} · فاتورة #{{ l.invoice_token }}{% endif %}</div><div class="sub">السبب: {{ l.reason or 'بدون سبب' }}</div></div>
+        {% else %}<div class="empty"><i class="fa-solid fa-shield-check"></i>السجل نظيف — مفيش تعديلات أو حذف.</div>{% endfor %}</div></div>
+</section>
+
+<!-- ================= 11) الإعدادات ================= -->
+<section id="tab-settings" class="tab-content space-y-4" data-title="الإعدادات" data-desc="بيانات المطبعة وحسابك">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card"><div class="card-title"><i class="fa-solid fa-store"></i> بيانات المطبعة</div>
+            <p class="sub mb-3">رقم الهاتف مهم: عليه بتوصل رسائل «النواقص» على واتساب.</p>
+            <form action="/admin/shop/update" method="POST" class="grid grid-cols-2 gap-3">
+                <div class="col-span-2"><label class="lbl">اسم المطبعة *</label><input name="name" required class="inp" value="{{ shop.name if shop }}"></div>
+                <div><label class="lbl">اسم المالك</label><input name="owner_name" class="inp" value="{{ shop.owner_name if shop }}"></div>
+                <div><label class="lbl">رقم الهاتف (واتساب)</label><input name="phone" class="inp mono" value="{{ shop.phone if shop }}" placeholder="01XXXXXXXXX"></div>
+                <div class="col-span-2"><label class="lbl">العنوان</label><input name="address" class="inp" value="{{ shop.address if shop }}"></div>
+                <button class="btn btn-brand col-span-2" type="submit">حفظ البيانات</button></form></div>
+        <div class="card"><div class="card-title"><i class="fa-solid fa-key"></i> تغيير كلمة المرور</div>
+            <form action="/account/password" method="POST" class="grid gap-3">
+                <div><label class="lbl">كلمة المرور الحالية</label><input type="password" name="current_password" required class="inp" autocomplete="current-password" dir="ltr"></div>
+                <div><label class="lbl">الجديدة (6 أحرف على الأقل)</label><input type="password" name="new_password" required minlength="6" class="inp" autocomplete="new-password" dir="ltr"></div>
+                <button class="btn btn-brand" type="submit">تغيير كلمة المرور</button></form></div>
+
+        <div class="card lg:col-span-2" id="presetCard"><div class="card-title"><i class="fa-solid fa-layer-group"></i> نوع النشاط والقوالب الجاهزة</div>
+            <p class="sub mb-3">اختر نشاطك (مطبعة، مكتبة وتصوير، بنرات، هدايا، ملابس...) وهنضيف لك <b>خدمات وأسعار وتشطيبات جاهزة</b> كنقطة بداية. الأسعار استرشادية — عدّلها من «الخدمات والمخزون». الخدمات الموجودة عندك مش هتتكرر ولا تتمسح.</p>
+            <form action="/admin/preset/apply" method="POST" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3" data-confirm="هيتم إضافة خدمات القالب المختار (من غير ما يتمسح أي شيء موجود). نكمل؟" data-confirm-title="تطبيق قالب نشاط" data-confirm-ok="طبّق القالب">
+                {% for p in presets %}
+                <label class="p-3 rounded-xl cursor-pointer flex gap-3 items-start" style="background:var(--ui-surface2);border:1px solid var(--ui-line)">
+                    <input type="radio" name="preset" value="{{ p.id }}" {{ 'checked' if p.id == preset_current }} class="mt-1">
+                    <span class="min-w-0"><span class="font-black block"><i class="fa-solid {{ p.icon }} gold-t"></i> {{ p.name }}</span><span class="sub block">{{ p.desc }}</span><span class="badge mt-1">{{ p.count }} خدمة</span></span></label>
+                {% endfor %}
+                <button class="btn btn-brand sm:col-span-2 xl:col-span-3" type="submit"><i class="fa-solid fa-wand-magic-sparkles"></i> تطبيق القالب المختار</button>
+            </form></div>
+
+        <div class="card lg:col-span-2" id="loyaltyCard"><div class="card-title"><i class="fa-solid fa-crown"></i> فئات العملاء المميزين وصلاحيات الكاشير</div>
+            <p class="sub mb-3">السيستم بيسجّل كل عميل تلقائياً أول ما تكتب اسمه في فاتورة. لما العميل يحقق <b>الشرطين معاً</b> (عدد الفواتير + إجمالي المشتريات) بيتحط له اسم الفئة على الفاتورة، وبيتطبق خصمه تلقائي لو حددت نسبة.</p>
+            <form action="/admin/config/save" method="POST" class="space-y-3">
+                <div class="overflow-x-auto"><table class="tbl"><thead><tr><th>اسم الفئة</th><th>عدد الفواتير (على الأقل)</th><th>إجمالي المشتريات (ج.م)</th><th>خصم تلقائي %</th></tr></thead><tbody>
+                {% set rows = cfg.tiers + [{}] * (3 - (cfg.tiers|length) if cfg.tiers|length < 3 else 0) %}
+                {% for t in rows %}<tr><td><input name="tier_name" value="{{ t.name or '' }}" class="inp" placeholder="مثال: عميل مميز"></td>
+                    <td><input name="tier_min_invoices" type="number" min="0" value="{{ t.min_invoices if t.name else '' }}" class="inp mono"></td>
+                    <td><input name="tier_min_spent" type="number" step="any" min="0" value="{{ '%g' % t.min_spent if t.name else '' }}" class="inp mono"></td>
+                    <td><input name="tier_discount" type="number" step="any" min="0" max="100" value="{{ '%g' % t.discount if t.name else '' }}" class="inp mono"></td></tr>{% endfor %}
+                </tbody></table></div>
+                <p class="sub">مثال: «عميل مميز» بعد 20 فاتورة ومشتريات 300 ج. سيب الاسم فاضي لو مش عايز الفئة.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div><label class="lbl">تعديل الفواتير للكاشير <span class="ui-q" tabindex="0" data-tip="أي تعديل بيتسجل في سجل الرقابة بسببه، بغض النظر عن الإعداد.">؟</span></label>
+                        <select name="cashier_edit" class="inp"><option value="off" {{ 'selected' if cfg.cashier_edit == 'off' }}>ممنوع (الأدمن فقط)</option><option value="own_today" {{ 'selected' if cfg.cashier_edit == 'own_today' }}>فواتيره هو اللي عملها النهاردة</option><option value="all" {{ 'selected' if cfg.cashier_edit == 'all' }}>كل فواتير الفرع</option></select></div>
+                    <label class="tgl self-end"><input type="checkbox" name="cashier_delete" value="1" {{ 'checked' if cfg.cashier_delete }}> يقدر الكاشير يحذف فاتورة (بسبب)</label>
+                </div>
+                <button class="btn btn-brand" type="submit">حفظ</button>
+            </form></div>
+        <div class="card"><div class="card-title"><i class="fa-solid fa-graduation-cap"></i> المساعدة</div>
+            <div class="flex gap-2 flex-wrap"><button class="btn" onclick="startTour()"><i class="fa-solid fa-circle-play"></i> إعادة الجولة التعريفية</button>
+            <button class="btn" onclick="UI.resetNotes(); UI.toast('تم إظهار كل الملاحظات الإرشادية', 'success')"><i class="fa-solid fa-lightbulb"></i> إظهار الملاحظات المخفية</button></div></div>
+        <div class="card"><div class="card-title"><i class="fa-brands fa-whatsapp ok-t"></i> الدعم الفني</div>
+            <a class="btn" target="_blank" href="https://wa.me/201055663606?text={{ ('مرحباً كيرو، أنا أدمن مطبعة: ' ~ press_name ~ ' وأحتاج للمساعدة بخصوص المنظومة') | urlencode }}">تواصل مع كيرو على واتساب</a></div>
+    </div>
+</section>
+
+        </main>
+    </div>
+</div>
+
+<!-- ================= النوافذ ================= -->
+<div id="m-service" class="mdl-bd" onmousedown="if(event.target===this)closeM('m-service')"><div class="mdl"><div class="mdl-h"><span>تعديل خدمة</span><button class="x-btn" onclick="closeM('m-service')" aria-label="إغلاق">×</button></div>
+    <form id="f-service" method="POST"><div class="mdl-b grid grid-cols-2 gap-3">
+        <div class="col-span-2"><label class="lbl">الاسم *</label><input name="name" required class="inp"></div>
+        <div><label class="lbl">سعر التكلفة</label><input type="number" step="any" min="0" name="cost_price" class="inp"></div>
+        <div><label class="lbl">سعر القطاعي</label><input type="number" step="any" min="0" name="price_reg" class="inp"></div>
+        <div><label class="lbl">سعر الجملة</label><input type="number" step="any" min="0" name="price_bulk" class="inp"></div>
+        <div><label class="lbl">حد الجملة</label><input type="number" step="any" min="0" name="bulk_threshold" class="inp"></div>
+        <div><label class="lbl">الرصيد (فاضي = غير محدود)</label><input type="number" step="any" name="stock" class="inp"></div>
+        <div><label class="lbl">حد الطلب</label><input type="number" step="any" min="0" name="threshold" class="inp"></div>
+        <div><label class="lbl">الوحدة</label><input name="unit_name" class="inp"></div>
+        <div><label class="lbl">سعر المتر المربع</label><input type="number" step="any" min="0" name="price_per_sqm" class="inp"></div>
+        <label class="tgl"><input type="checkbox" name="is_measurement_based" value="1"> حساب بالمتر</label>
+        <label class="tgl"><input type="checkbox" name="is_banner" value="1"> بنر</label>
+        <label class="tgl"><input type="checkbox" name="is_favorite" value="1"> مفضلة ⭐</label></div>
+        <div class="mdl-f"><button class="btn btn-brand" type="submit">حفظ التعديلات</button><button type="button" class="btn" onclick="closeM('m-service')">إلغاء</button></div></form></div></div>
+
+<div id="m-customer" class="mdl-bd" onmousedown="if(event.target===this)closeM('m-customer')"><div class="mdl"><div class="mdl-h"><span>تعديل عميل متميز</span><button class="x-btn" onclick="closeM('m-customer')" aria-label="إغلاق">×</button></div>
+    <form id="f-customer" method="POST"><div class="mdl-b grid grid-cols-2 gap-3">
+        <div class="col-span-2"><label class="lbl">الاسم *</label><input name="name" required class="inp"></div>
+        <div><label class="lbl">الهاتف</label><input name="phone" class="inp mono"></div>
+        <div><label class="lbl">الخصم %</label><input type="number" step="any" min="0" max="100" name="discount_percentage" class="inp"></div>
+        <div class="col-span-2"><label class="lbl">الرتبة</label><input name="tier_name" class="inp"></div></div>
+        <div class="mdl-f"><button class="btn btn-brand" type="submit">حفظ</button><button type="button" class="btn" onclick="closeM('m-customer')">إلغاء</button></div></form></div></div>
+
+<div id="m-binding" class="mdl-bd" onmousedown="if(event.target===this)closeM('m-binding')"><div class="mdl"><div class="mdl-h"><span>تعديل أسلوب التجليد</span><button class="x-btn" onclick="closeM('m-binding')" aria-label="إغلاق">×</button></div>
+    <form id="f-binding" method="POST"><div class="mdl-b grid grid-cols-2 gap-3">
+        <div><label class="lbl">النوع *</label><input name="name" required class="inp"></div>
+        <div><label class="lbl">السعر للوحدة</label><input type="number" step="any" min="0" name="price_per_unit" class="inp mono"></div></div>
+        <div class="mdl-f"><button class="btn btn-brand" type="submit">حفظ</button><button type="button" class="btn" onclick="closeM('m-binding')">إلغاء</button></div></form></div></div>
+
+<div id="m-cashier" class="mdl-bd" onmousedown="if(event.target===this)closeM('m-cashier')"><div class="mdl"><div class="mdl-h"><span>تعديل بيانات موظف</span><button class="x-btn" onclick="closeM('m-cashier')" aria-label="إغلاق">×</button></div>
+    <form id="f-cashier" method="POST"><div class="mdl-b grid grid-cols-2 gap-3">
+        <div class="col-span-2"><label class="lbl">الاسم الكامل</label><input name="full_name" required class="inp"></div>
+        <div><label class="lbl">الراتب الأساسي</label><input type="number" step="any" min="0" name="base_salary" class="inp mono"></div>
+        <div id="cashierRoleWrap"><label class="lbl">الوظيفة</label><select name="role" class="inp"><option value="cashier">كاشير</option><option value="supervisor">مشرف</option></select></div>
+        <div class="col-span-2"><label class="lbl">كلمة مرور جديدة <span class="ui-q" tabindex="0" data-tip="سيبها فاضية لو مش عايز تغيّر كلمة المرور.">؟</span></label><input type="password" name="new_password" minlength="6" class="inp" dir="ltr" autocomplete="new-password" placeholder="اختياري"></div>
+        <label class="tgl col-span-2" id="cashierActiveWrap"><input type="checkbox" name="is_active" value="1"> الحساب مفعّل (يقدر يسجل الدخول)</label></div>
+        <div class="mdl-f"><button class="btn btn-brand" type="submit">حفظ</button><button type="button" class="btn" onclick="closeM('m-cashier')">إلغاء</button></div></form></div></div>
+
+<div id="m-debt" class="mdl-bd" onmousedown="if(event.target===this)closeM('m-debt')"><div class="mdl"><div class="mdl-h"><span>تسجيل سداد مديونية</span><button class="x-btn" onclick="closeM('m-debt')" aria-label="إغلاق">×</button></div>
+    <div class="mdl-b space-y-3"><div>العميل: <b id="debtName"></b> — المتبقي: <b class="bad-t mono" id="debtTotal"></b> ج.م</div>
+        <div><label class="lbl" for="debtAmount">المبلغ المسدد (ج.م)</label><input type="number" step="any" min="0" id="debtAmount" class="inp mono"></div>
+        <p class="sub">السداد بيتوزع على أقدم الفواتير أولاً.</p></div>
+    <div class="mdl-f"><button class="btn btn-brand" onclick="submitDebtPay()">تأكيد السداد</button><button class="btn" onclick="closeM('m-debt')">إلغاء</button></div></div></div>
+
+<div id="m-stmt" class="mdl-bd" onmousedown="if(event.target===this)closeM('m-stmt')"><div class="mdl lg"><div class="mdl-h"><span id="stmtTitle">كشف حساب</span><button class="x-btn" onclick="closeM('m-stmt')" aria-label="إغلاق">×</button></div>
+    <div class="mdl-b"><div id="stmtBal" class="font-black mb-3"></div><div class="overflow-x-auto scroll-y" style="max-height:50vh"><table class="tbl"><thead><tr><th>التاريخ</th><th>الحركة</th><th>البيان</th><th>المبلغ</th><th></th></tr></thead><tbody id="stmtBody"></tbody></table></div></div></div></div>
+
+<div id="m-invoice" class="mdl-bd" onmousedown="if(event.target===this)closeInvoiceEditor()"><div class="mdl lg"><div class="mdl-h"><span>تعديل فاتورة <span class="mono gold-t" id="ieToken"></span></span><button class="x-btn" onclick="closeInvoiceEditor()" aria-label="إغلاق">×</button></div>
+    <div class="mdl-b space-y-4">
+        <div class="ui-note"><i class="fa-solid fa-triangle-exclamation"></i><div>التعديل بيغيّر الفاتورة نفسها وبيرجّع/يخصم المخزن تلقائياً. لازم تكتب <b>سبب التعديل</b> ويتسجل في سجل الرقابة.</div></div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="col-span-2"><label class="lbl">اسم العميل</label><input id="ie_customer" class="inp"></div>
+            <div><label class="lbl">الهاتف</label><input id="ie_phone" class="inp mono"></div>
+            <div><label class="lbl">طريقة الدفع</label><select id="ie_payment" class="inp"><option>نقدي</option><option>فودافون كاش</option><option>إنستا باي</option><option>تحويل بنكي</option><option>آجل</option></select></div>
+            <div><label class="lbl">حالة الطلب</label><select id="ie_status" class="inp">{% for st in statuses %}<option>{{ st }}</option>{% endfor %}</select></div>
+            <div class="md:col-span-3"><label class="lbl">ملاحظات الفاتورة</label><input id="ie_notes" class="inp"></div></div>
+        <div class="overflow-x-auto"><table class="tbl"><thead><tr><th style="min-width:170px">البند</th><th>الكمية</th><th>الطول</th><th>العرض</th><th>سعر الوحدة/م²</th><th>الإجمالي</th><th></th></tr></thead><tbody id="ieItems"></tbody></table></div>
+        <div class="flex gap-2 items-center flex-wrap"><button class="btn btn-sm" onclick="ieAddRow()"><i class="fa-solid fa-plus"></i> بند جديد</button>
+            <select id="ieSvcPick" class="inp !w-56" onchange="ieAddFromService(this)"><option value="">+ إضافة من الخدمات...</option></select></div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div><label class="lbl">مصاريف التصميم</label><input type="number" step="any" min="0" id="ie_design" class="inp mono" oninput="ieCalc()"></div>
+            <div><label class="lbl">الخصم</label><input type="number" step="any" min="0" id="ie_discount" class="inp mono" oninput="ieCalc()"></div>
+            <div><label class="lbl">المدفوع</label><input type="number" step="any" min="0" id="ie_deposit" class="inp mono" oninput="ieCalc()"></div>
+            <div class="p-3 rounded-xl text-center" style="background:var(--ui-surface2)"><div class="sub">المتبقي</div><div id="ie_remaining" class="mono font-black bad-t"></div></div>
+            <div><label class="lbl">القص والتجهيز: كمية × سعر</label><div class="flex gap-1"><input type="number" min="0" id="ie_cut_q" class="inp mono" oninput="ieCalc()"><input type="number" step="any" min="0" id="ie_cut_p" class="inp mono" oninput="ieCalc()"></div></div>
+            <div><label class="lbl">السولفان: كمية × سعر</label><div class="flex gap-1"><input type="number" min="0" id="ie_sol_q" class="inp mono" oninput="ieCalc()"><input type="number" step="any" min="0" id="ie_sol_p" class="inp mono" oninput="ieCalc()"></div></div>
+            <div><label class="lbl">تجهيز بشر: كمية × سعر</label><div class="flex gap-1"><input type="number" min="0" id="ie_bes_q" class="inp mono" oninput="ieCalc()"><input type="number" step="any" min="0" id="ie_bes_p" class="inp mono" oninput="ieCalc()"></div></div>
+            <div class="p-3 rounded-xl text-center" style="background:var(--ui-surface2)"><div class="sub">الإجمالي الكلي</div><div id="ie_grand" class="mono font-black gold-t"></div></div></div>
+        <div><label class="lbl">خدمات التشطيب الإضافية</label><div id="ieExtras" class="space-y-2"></div><button class="btn btn-sm mt-2" type="button" onclick="ieAddExtra()"><i class="fa-solid fa-plus"></i> خدمة تشطيب</button></div>
+        <div><label class="lbl" for="ie_reason">سبب التعديل * (يُسجل في الرقابة)</label><input id="ie_reason" class="inp" placeholder="مثال: العميل غيّر الكمية"></div>
+    </div>
+    <div class="mdl-f"><button class="btn btn-brand" id="ieSave" onclick="saveInvoiceEdit()"><i class="fa-solid fa-floppy-disk"></i> حفظ التعديلات</button><button class="btn" onclick="closeInvoiceEditor()">إلغاء</button></div></div></div>
+
+<script>
+const SERVICES = {{ services_json|tojson }};
+const PRESS = {{ press_name|tojson }};
+const E = UI.esc;
+const fm = n => (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+const TAB_META = {};
+document.querySelectorAll('.tab-content').forEach(t => TAB_META[t.id.replace('tab-', '')] = {title: t.dataset.title, desc: t.dataset.desc});
+let curTab = 'dashboard', designDirty = false, designInit = false;
+
+/* ---------- التنقل ---------- */
+function switchTab(id, noHash) {
+    if (!TAB_META[id]) id = 'dashboard';
+    if (curTab === 'design' && id !== 'design' && designDirty) UI.toast('تصميم الفاتورة فيه تعديلات لم تُحفظ بعد — ارجع واضغط «حفظ التصميم».', 'warn', 6000);
+    curTab = id;
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + id));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.id === 'btn-tab-' + id));
+    document.getElementById('pageTitle').textContent = TAB_META[id].title;
+    document.getElementById('pageDesc').textContent = TAB_META[id].desc;
+    if (!noHash) history.replaceState(null, '', location.pathname + location.search + '#' + id);
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sbOverlay').classList.add('hidden');
+    if (id === 'design' && !designInit) initDesign();
+    if (id === 'debts') loadDebtors();
+    if (id === 'b2b') loadB2B();
+    window.scrollTo({top: 0});
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sbOverlay').classList.toggle('hidden'); }
+function toggleTheme() {
+    const c = document.body.classList.toggle('cream-mode');
+    localStorage.setItem('kiro_theme', c ? 'cream' : 'royal'); syncTheme();
+    if (window.mainChart) buildChart();
+}
+function syncTheme() { document.getElementById('themeBtnText').textContent = document.body.classList.contains('cream-mode') ? 'الوضع الملكي' : 'الوضع الفاتح'; }
+function openM(id) { document.getElementById(id).classList.add('show'); }
+function closeM(id) { document.getElementById(id).classList.remove('show'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.mdl-bd.show').forEach(m => { if (m.id === 'm-invoice') closeInvoiceEditor(); else m.classList.remove('show'); }); });
+function filterRows(id, q) {
+    q = q.trim().toLowerCase();
+    document.querySelectorAll('#' + id + ' tbody tr, #' + id + ' [data-row]').forEach(r => { r.style.display = (!q || r.textContent.toLowerCase().includes(q)) ? '' : 'none'; });
+}
+function fillForm(form, data) {
+    Object.keys(data).forEach(k => {
+        const el = form.elements[k]; if (!el) return;
+        if (el.type === 'checkbox') el.checked = !!data[k];
+        else el.value = (data[k] === null || data[k] === undefined) ? '' : data[k];
+    });
+}
+
+/* ---------- نوافذ التعديل ---------- */
+function openServiceEdit(s) {
+    const f = document.getElementById('f-service'); f.action = '/admin/service/' + s.id + '/edit';
+    if (s.stock < 0) s.stock = ''; fillForm(f, s); openM('m-service');
+}
+function openCustomerEdit(c) { const f = document.getElementById('f-customer'); f.action = '/admin/customer/' + c.id + '/edit'; fillForm(f, c); openM('m-customer'); }
+function openBindingEdit(b) { const f = document.getElementById('f-binding'); f.action = '/admin/binding/' + b.id + '/edit'; fillForm(f, b); openM('m-binding'); }
+function openCashierEdit(c) {
+    const f = document.getElementById('f-cashier'); f.action = '/admin/cashier/' + c.id + '/edit'; fillForm(f, c); f.elements.new_password.value = '';
+    const isAdmin = c.role === 'shop_admin';
+    document.getElementById('cashierRoleWrap').style.display = isAdmin ? 'none' : '';
+    document.getElementById('cashierActiveWrap').style.display = isAdmin ? 'none' : '';
+    openM('m-cashier');
+}
+
+/* ---------- حذف عبر POST بعد تأكيد ---------- */
+async function confirmPost(btn) {
+    if (!await UI.confirm({title: 'تأكيد الحذف', message: 'هتتحذف «' + btn.dataset.delName + '». متأكد؟', danger: true, okText: 'احذف'})) return;
+    const f = document.createElement('form'); f.method = 'POST'; f.action = btn.dataset.delUrl; document.body.appendChild(f); f.submit();
+}
+
+/* ---------- حذف فاتورة ---------- */
+async function deleteInvoice(token) {
+    const reason = await UI.prompt({title: 'حذف الفاتورة #' + token, message: 'الفاتورة هتتحذف نهائياً والكميات هترجع للمخزن. اكتب سبب الحذف:', placeholder: 'سبب الحذف', required: true, okText: 'احذف الفاتورة', danger: true});
+    if (reason === null) return;
+    const f = document.createElement('form'); f.method = 'POST'; f.action = '/admin/invoice/delete/' + token;
+    f.innerHTML = '<input type="hidden" name="reason"><input type="hidden" name="back">';
+    f.elements.reason.value = reason; f.elements.back.value = '/admin' + location.search; 
+    document.body.appendChild(f); f.submit();
+}
+
+/* ---------- محرر الفاتورة ---------- */
+let ieToken = null;
+function svcOptions() { return SERVICES.map(s => '<option value="' + s.id + '">' + E(s.name) + '</option>').join(''); }
+function ieRowHtml(it) {
+    it = it || {id: 0, name: '', qty: 1, height: 0, width: 0, unit_price: 0, total: 0};
+    return '<tr data-svc="' + (it.id || 0) + '"><td><input class="inp ie-name" value="' + E(it.name) + '"></td>' +
+        '<td><input type="number" step="any" min="0" class="inp mono ie-qty" value="' + (it.qty || 0) + '" oninput="ieRow(this)"></td>' +
+        '<td><input type="number" step="any" min="0" class="inp mono ie-h" value="' + (it.height || 0) + '" oninput="ieRow(this)"></td>' +
+        '<td><input type="number" step="any" min="0" class="inp mono ie-w" value="' + (it.width || 0) + '" oninput="ieRow(this)"></td>' +
+        '<td><input type="number" step="any" min="0" class="inp mono ie-price" value="' + (it.unit_price || 0) + '" oninput="ieRow(this)"></td>' +
+        '<td><input type="number" step="any" min="0" class="inp mono ie-total" value="' + (it.total || 0) + '" oninput="ieCalc()"></td>' +
+        '<td><button class="btn btn-danger btn-icon btn-sm" type="button" onclick="this.closest(\'tr\').remove();ieCalc()" aria-label="حذف البند"><i class="fa-solid fa-xmark"></i></button></td></tr>';
+}
+function ieRow(inp) {
+    const tr = inp.closest('tr'), q = num(tr.querySelector('.ie-qty').value), h = num(tr.querySelector('.ie-h').value),
+          w = num(tr.querySelector('.ie-w').value), p = num(tr.querySelector('.ie-price').value);
+    tr.querySelector('.ie-total').value = ((h > 0 && w > 0) ? q * (h * w / 10000) * p : q * p).toFixed(2);
+    ieCalc();
+}
+function ieAddRow(it) { document.getElementById('ieItems').insertAdjacentHTML('beforeend', ieRowHtml(it)); ieCalc(); }
+function ieAddFromService(sel) {
+    const s = SERVICES.find(x => String(x.id) === sel.value); sel.value = ''; if (!s) return;
+    ieAddRow({id: s.id, name: s.name, qty: 1, height: 0, width: 0, unit_price: s.is_measurement_based ? s.price_per_sqm : s.price_reg, total: s.is_measurement_based ? 0 : s.price_reg});
+}
+function ieAddExtra(e) {
+    e = (e && e.name !== undefined) ? e : {name: '', qty: 1, price: 0};
+    document.getElementById('ieExtras').insertAdjacentHTML('beforeend', '<div data-ex class="grid grid-cols-12 gap-2"><input class="inp ex-n col-span-6" placeholder="اسم الخدمة" value="' + E(e.name) + '"><input type="number" step="any" min="0" class="inp mono ex-q col-span-2" value="' + e.qty + '" oninput="ieCalc()" aria-label="الكمية"><input type="number" step="any" min="0" class="inp mono ex-p col-span-3" value="' + e.price + '" oninput="ieCalc()" aria-label="السعر"><button type="button" class="btn btn-danger btn-icon btn-sm col-span-1" onclick="this.closest(\'[data-ex]\').remove();ieCalc()" aria-label="حذف"><i class="fa-solid fa-xmark"></i></button></div>');
+    ieCalc();
+}
+function ieCalc() {
+    let sub = 0; document.querySelectorAll('#ieItems .ie-total').forEach(i => sub += num(i.value));
+    const ex = num(ie_cut_q.value) * num(ie_cut_p.value) + num(ie_sol_q.value) * num(ie_sol_p.value) + num(ie_bes_q.value) * num(ie_bes_p.value);
+    let exx = 0; document.querySelectorAll('#ieExtras [data-ex]').forEach(r => exx += num(r.querySelector('.ex-q').value) * num(r.querySelector('.ex-p').value));
+    const grand = Math.max(0, sub + num(ie_design.value) + ex + exx - num(ie_discount.value));
+    document.getElementById('ie_grand').textContent = fm(grand) + ' ج';
+    document.getElementById('ie_remaining').textContent = fm(Math.max(0, grand - num(ie_deposit.value))) + ' ج';
+}
+async function openInvoiceEditor(token) {
+    try {
+        const r = await fetch('/admin/invoice/' + token + '/data'); const d = await r.json();
+        if (!d.success) return UI.toast(d.message || 'تعذر تحميل الفاتورة', 'error');
+        ieToken = token; const v = d.invoice;
+        document.getElementById('ieToken').textContent = '#' + token;
+        ie_customer.value = v.customer_name || ''; ie_phone.value = v.customer_phone || ''; ie_payment.value = v.payment_method || 'نقدي';
+        if (![...ie_payment.options].some(o => o.value === ie_payment.value)) ie_payment.add(new Option(ie_payment.value, ie_payment.value, true, true));
+        ie_status.value = v.delivery_status; ie_notes.value = v.notes || '';
+        ie_design.value = v.design_price || 0; ie_discount.value = v.discount || 0; ie_deposit.value = v.deposit || 0;
+        ie_cut_q.value = v.cutting.qty || 0; ie_cut_p.value = v.cutting.price || 0; ie_sol_q.value = v.solofan.qty || 0; ie_sol_p.value = v.solofan.price || 0;
+        ie_bes_q.value = v.beshr.qty || 0; ie_bes_p.value = v.beshr.price || 0; ie_reason.value = '';
+        document.getElementById('ieExtras').innerHTML = ''; (v.extras || []).forEach(ieAddExtra);
+        document.getElementById('ieItems').innerHTML = d.items.map(ieRowHtml).join('');
+        document.getElementById('ieSvcPick').innerHTML = '<option value="">+ إضافة من الخدمات...</option>' + svcOptions();
+        ieCalc(); openM('m-invoice');
+    } catch (e) { UI.toast('تعذر الاتصال بالسيرفر', 'error'); }
+}
+async function closeInvoiceEditor() { closeM('m-invoice'); }
+async function saveInvoiceEdit() {
+    const cart = [...document.querySelectorAll('#ieItems tr')].map(tr => ({
+        id: parseInt(tr.dataset.svc) || 0, name: tr.querySelector('.ie-name').value.trim(), qty: num(tr.querySelector('.ie-qty').value),
+        height: num(tr.querySelector('.ie-h').value), width: num(tr.querySelector('.ie-w').value),
+        unit_price: num(tr.querySelector('.ie-price').value), total: num(tr.querySelector('.ie-total').value)})).filter(i => i.name);
+    if (!cart.length) return UI.toast('لازم يكون في بند واحد على الأقل.', 'error');
+    if (!ie_reason.value.trim()) { ie_reason.focus(); return UI.toast('اكتب سبب التعديل أولاً.', 'error'); }
+    const btn = document.getElementById('ieSave'); btn.disabled = true;
+    const body = {customer_name: ie_customer.value, customer_phone: ie_phone.value, payment_method: ie_payment.value, delivery_status: ie_status.value, notes: ie_notes.value,
+        design_price: num(ie_design.value), discount: num(ie_discount.value), deposit: num(ie_deposit.value),
+        cutting: {qty: num(ie_cut_q.value), price: num(ie_cut_p.value)}, solofan: {qty: num(ie_sol_q.value), price: num(ie_sol_p.value)}, beshr: {qty: num(ie_bes_q.value), price: num(ie_bes_p.value)},
+        extras: [...document.querySelectorAll('#ieExtras [data-ex]')].map(r => ({name: r.querySelector('.ex-n').value.trim(), qty: num(r.querySelector('.ex-q').value), price: num(r.querySelector('.ex-p').value)})).filter(x => x.name),
+        cart, reason: ie_reason.value.trim()};
+    try {
+        const r = await fetch('/admin/invoice/' + ieToken + '/update', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+        const d = await r.json();
+        if (!d.success) { btn.disabled = false; return UI.toast(d.message || 'تعذر الحفظ', 'error'); }
+        UI.toast('تم حفظ تعديلات الفاتورة #' + ieToken, 'success');
+        (d.warnings || []).forEach(w => UI.toast(w, 'warn', 8000));
+        setTimeout(() => location.reload(), 1200);
+    } catch (e) { btn.disabled = false; UI.toast('تعذر الاتصال بالسيرفر', 'error'); }
+}
+
+/* ---------- الديون ---------- */
+let debtCur = null;
+function waPhone(p) { p = String(p || '').replace(/\D/g, ''); if (p.startsWith('01')) p = '2' + p; return p; }
+async function loadDebtors() {
+    const body = document.getElementById('debtorsBody');
+    try {
+        const list = await (await fetch('/api/debt/customers')).json();
+        if (!Array.isArray(list) || !list.length) { body.innerHTML = '<tr><td colspan="5"><div class="empty"><i class="fa-solid fa-circle-check"></i>مفيش مديونيات مفتوحة 🎉</div></td></tr>'; return; }
+        body.innerHTML = list.map((d, i) => {
+            const msg = 'مرحباً ' + d.name + '، تذكير ودي بوجود مبلغ مستحق ' + fm(d.total_debt) + ' ج.م لدى ' + PRESS + '. شكراً لتعاملكم.';
+            return '<tr><td class="font-bold">' + E(d.name) + '</td><td class="mono">' + E(d.phone) + '</td><td>' + d.count + '</td><td class="mono bad-t font-black">' + fm(d.total_debt) + '</td><td><div class="flex gap-1.5">' +
+                '<a class="btn btn-ok btn-sm" target="_blank" href="/cashier/debts?c=' + encodeURIComponent(d.name) + '"><i class="fa-solid fa-money-bill-wave"></i> سداد</a>' +
+                (d.phone ? '<a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/' + waPhone(d.phone) + '?text=' + encodeURIComponent(msg) + '"><i class="fa-brands fa-whatsapp ok-t"></i> تذكير</a>' : '') + '</div></td></tr>';
+        }).join('');
+        window._debtors = list;
+    } catch (e) { body.innerHTML = '<tr><td colspan="5" class="empty">تعذر تحميل المديونيات</td></tr>'; }
+}
+function openDebtPay(i) { debtCur = window._debtors[i]; debtName.textContent = debtCur.name; debtTotal.textContent = fm(debtCur.total_debt); debtAmount.value = debtCur.total_debt; openM('m-debt'); debtAmount.select(); }
+async function submitDebtPay() {
+    const amount = num(debtAmount.value);
+    if (amount <= 0) return UI.toast('اكتب مبلغ السداد.', 'error');
+    const r = await fetch('/api/debt/pay', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({customer_name: debtCur.name, amount})});
+    const d = await r.json();
+    if (!d.success) return UI.toast(d.message || 'تعذر التسجيل', 'error');
+    closeM('m-debt'); UI.toast('تم تسجيل السداد ✅', 'success'); if (d.message) UI.toast(d.message, 'warn', 8000); loadDebtors();
+}
+
+/* ---------- B2B ---------- */
+async function loadB2B() {
+    const body = document.getElementById('b2bBody'), sel = document.getElementById('b2b_partner_select');
+    try {
+        const list = await (await fetch('/api/b2b/partners')).json();
+        sel.innerHTML = '<option value="">— اختر —</option>' + list.map(p => '<option value="' + p.id + '">' + E(p.name) + '</option>').join('');
+        if (!list.length) { body.innerHTML = '<tr><td colspan="5"><div class="empty"><i class="fa-solid fa-handshake"></i>لسه مضفتش أي وكالة شريكة.</div></td></tr>'; return; }
+        body.innerHTML = list.map(p => {
+            const cls = p.balance > 0 ? 'ok-t' : (p.balance < 0 ? 'bad-t' : 'sub');
+            const st = p.balance > 0 ? 'لنا طرفه' : (p.balance < 0 ? 'له طرفنا' : 'خالص تماماً');
+            return '<tr><td class="font-bold">' + E(p.name) + '</td><td class="mono">' + E(p.phone || '') + '</td><td class="mono font-black ' + cls + '">' + fm(Math.abs(p.balance)) + ' ج</td><td class="' + cls + ' font-bold">' + st + '</td>' +
+                '<td><div class="flex gap-1.5"><button class="btn btn-sm" onclick="openStatement(' + p.id + ')"><i class="fa-solid fa-list"></i> كشف حساب</button>' +
+                '<button class="btn btn-danger btn-icon btn-sm" aria-label="حذف" onclick="deletePartner(' + p.id + ',this)" data-n="' + E(p.name) + '"><i class="fa-solid fa-trash"></i></button></div></td></tr>';
+        }).join('');
+    } catch (e) { body.innerHTML = '<tr><td colspan="5" class="empty">تعذر التحميل</td></tr>'; }
+}
+async function addB2BPartner() {
+    const name = b2b_name.value.trim(); if (!name) return UI.toast('اكتب اسم الشريك.', 'error');
+    const r = await fetch('/api/b2b/partners', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({partner_name: name, phone: b2b_phone.value, notes: b2b_notes.value})});
+    const d = await r.json(); if (!d.success) return UI.toast(d.message, 'error');
+    b2b_name.value = b2b_phone.value = b2b_notes.value = ''; UI.toast('تم تسجيل الشريك ✅', 'success'); loadB2B();
+}
+async function submitB2BTransaction() {
+    const pid = parseInt(b2b_partner_select.value), amount = num(b2b_amount.value), desc = b2b_desc.value.trim();
+    if (!pid) return UI.toast('اختر الشريك أولاً.', 'error');
+    if (amount <= 0 || !desc) return UI.toast('اكتب المبلغ والبيان.', 'error');
+    const r = await fetch('/api/b2b/transaction/add', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({partner_id: pid, amount, trans_type: b2b_trans_type.value, description: desc})});
+    const d = await r.json(); if (!d.success) return UI.toast(d.message, 'error');
+    b2b_amount.value = b2b_desc.value = ''; UI.toast('تم قيد الحركة ✅', 'success'); loadB2B();
+}
+async function deletePartner(id, btn) {
+    if (!await UI.confirm({title: 'حذف شريك', message: 'هيتحذف «' + btn.dataset.n + '» مع كل كشف حسابه. متأكد؟', danger: true, okText: 'احذف'})) return;
+    const d = await (await fetch('/api/b2b/partner/' + id + '/delete', {method: 'POST'})).json();
+    UI.toast(d.message || 'تم', d.success ? 'success' : 'error'); loadB2B();
+}
+const TT = {take: 'طبعنا عنده', give: 'طبع عندنا', settle: 'تسوية'};
+async function openStatement(id) {
+    const d = await (await fetch('/api/b2b/partner/' + id + '/statement')).json();
+    if (!d.success) return UI.toast(d.message, 'error');
+    stmtTitle.textContent = 'كشف حساب: ' + d.name;
+    stmtBal.innerHTML = 'الرصيد: <span class="' + (d.balance > 0 ? 'ok-t' : d.balance < 0 ? 'bad-t' : '') + ' mono">' + fm(Math.abs(d.balance)) + ' ج</span> — ' + (d.balance > 0 ? 'لنا طرفه' : d.balance < 0 ? 'له طرفنا' : 'خالص تماماً');
+    stmtBody.innerHTML = d.rows.length ? d.rows.map(r => '<tr><td class="sub mono">' + E(r.date) + '</td><td>' + (TT[r.type] || r.type) + '</td><td>' + E(r.desc) + '</td><td class="mono font-black">' + fm(r.amount) + '</td><td><button class="btn btn-danger btn-icon btn-sm" aria-label="حذف الحركة" onclick="deleteTrans(' + r.id + ',' + id + ')"><i class="fa-solid fa-trash"></i></button></td></tr>').join('') : '<tr><td colspan="5" class="empty">مفيش حركات.</td></tr>';
+    openM('m-stmt');
+}
+async function deleteTrans(tid, pid) {
+    if (!await UI.confirm({title: 'حذف حركة', message: 'هتتحذف الحركة وهيتعدل الرصيد.', danger: true, okText: 'احذف'})) return;
+    const d = await (await fetch('/api/b2b/transaction/' + tid + '/delete', {method: 'POST'})).json();
+    if (!d.success) return UI.toast(d.message, 'error'); openStatement(pid); loadB2B();
+}
+
+/* ---------- النواقص ---------- */
+async function triggerShortageAlert() {
+    if (!await UI.confirm({title: 'إرسال النواقص', message: 'هيتجهز لك رسالة واتساب بقائمة الخامات اللي قربت تخلص. نكمل؟', okText: 'جهّز الرسالة'})) return;
+    const d = await (await fetch('/api/stock/trigger_shortage_order', {method: 'POST'})).json();
+    if (d.success && d.whatsapp_url) window.open(d.whatsapp_url, '_blank'); else UI.toast(d.message || 'تعذر إنشاء الرسالة', d.success ? 'info' : 'warn', 7000);
+}
+
+/* ---------- الرسم البياني ---------- */
+function buildChart() {
+    fetch('/api/admin/stats').then(r => r.json()).then(d => {
+        const cream = document.body.classList.contains('cream-mode'), tick = cream ? '#6a4a50' : '#d6c3ae', grid = cream ? 'rgba(92,10,23,.1)' : 'rgba(223,200,176,.12)';
+        if (window.mainChart) window.mainChart.destroy();
+        window.mainChart = new Chart(document.getElementById('adminMainChart'), {type: 'line', data: {labels: d.labels, datasets: [
+            {label: UI.t('المبيعات'), data: d.sales, borderColor: cream ? '#7a0c1e' : '#dfc8b0', backgroundColor: cream ? 'rgba(122,12,30,.12)' : 'rgba(223,200,176,.12)', fill: true, tension: .35},
+            {label: UI.t('المصروفات'), data: d.expenses, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,.08)', fill: true, tension: .35}]},
+            options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {labels: {color: tick, font: {family: 'Tajawal'}}}}, scales: {x: {ticks: {color: tick}, grid: {color: grid}}, y: {ticks: {color: tick}, grid: {color: grid}, beginAtZero: true}}}});
+    }).catch(() => {});
+}
+
+/* ---------- تصميم الفاتورة ---------- */
+let DESIGN = {{ inv_settings|tojson }};
+const SHOW_NAMES = {logo: 'اللوجو', title: 'اسم المطبعة', subtitle: 'العنوان الفرعي', header_lines: 'سطور الترويسة', number: 'رقم الفاتورة', date: 'التاريخ', customer: 'اسم العميل', phone: 'هاتف العميل', cashier: 'الكاشير', payment: 'طريقة الدفع', status: 'حالة الطلب', tier: 'فئة العميل المميز', col_index: 'عمود الترقيم', col_qty: 'عمود الكمية', col_price: 'عمود سعر الوحدة', dims: 'مقاس البند', design: 'مصاريف التصميم', extras: 'القص والسولفان والتجهيز', discount: 'الخصم', paid: 'المدفوع', remaining: 'المتبقي', debt_stamp: 'ختم المديونية', notes: 'ملاحظات الفاتورة', terms: 'الشروط والأحكام', qr: 'كود QR', footer: 'رسالة الشكر', brand: 'سطر الشعار', copyright: 'حقوق المطبعة'};
+const LABEL_NAMES = {doc: 'رقم الفاتورة', date: 'التاريخ', customer: 'العميل', phone: 'الهاتف', cashier: 'الكاشير', payment: 'طريقة الدفع', status: 'حالة الطلب', tier: 'فئة العميل', c_index: 'عمود #', c_item: 'عمود البيان', c_qty: 'عمود الكمية', c_price: 'عمود السعر', c_total: 'عمود الإجمالي', subtotal: 'إجمالي الخدمات', design: 'التصميم', cutting: 'القص والتجهيز', solofan: 'السولفان', beshr: 'تجهيز بشر', discount: 'الخصم', grand: 'المجموع الكلي', paid: 'المدفوع', remaining: 'المتبقي', debt: 'ختم المديونية', notes: 'الملاحظات', terms: 'الشروط', sig_customer: 'توقيع العميل', sig_shop: 'اعتماد المطبعة', dims: 'كلمة المقاس', cm: 'وحدة القياس'};
+let previewTimer = null;
+
+function initDesign() {
+    designInit = true;
+    document.getElementById('showGrid').innerHTML = Object.keys(SHOW_NAMES).map(k => '<label class="tgl"><input type="checkbox" data-show="' + k + '"> ' + SHOW_NAMES[k] + '</label>').join('');
+    document.getElementById('labelsGrid').insertAdjacentHTML('beforeend', Object.keys(LABEL_NAMES).map(k => '<div><label class="lbl">' + LABEL_NAMES[k] + '</label><input class="inp" data-lbl="' + k + '" maxlength="60"></div>').join(''));
+    const form = document.getElementById('designForm');
+    form.addEventListener('input', onDesignChange); form.addEventListener('change', onDesignChange);
+    applyDesign(DESIGN); schedulePreview(0);
+}
+function applyDesign(S) {
+    const form = document.getElementById('designForm');
+    form.querySelectorAll('[data-k]').forEach(el => { el.value = S[el.dataset.k]; });
+    form.querySelectorAll('[data-show]').forEach(el => { el.checked = !!S.show[el.dataset.show]; });
+    form.querySelectorAll('[data-lbl]').forEach(el => { el.value = S.labels[el.dataset.lbl] || ''; });
+    document.getElementById('scaleVal').textContent = S.scale;
+    setLogo(S.logo || ''); toggleWhen();
+}
+function readDesign() {
+    const S = {show: {}, labels: {}, logo: DESIGN.logo || ''};
+    document.querySelectorAll('#designForm [data-k]').forEach(el => { S[el.dataset.k] = el.type === 'number' || el.type === 'range' ? num(el.value) : el.value; });
+    document.querySelectorAll('#designForm [data-show]').forEach(el => { S.show[el.dataset.show] = el.checked; });
+    document.querySelectorAll('#designForm [data-lbl]').forEach(el => { S.labels[el.dataset.lbl] = el.value; });
+    return S;
+}
+function toggleWhen() {
+    const v = document.querySelector('#designForm [data-k="paper"]').value;
+    document.querySelectorAll('#designForm [data-when]').forEach(el => { const [k, val] = el.dataset.when.split('='); el.style.display = (v === val) ? '' : 'none'; });
+}
+function onDesignChange() { toggleWhen(); setDirty(true); schedulePreview(); }
+function setDirty(v) { designDirty = v; document.getElementById('dirtyBadge').classList.toggle('hidden', !v); }
+function schedulePreview(ms) {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => {
+        document.getElementById('pvSettings').value = JSON.stringify(readDesign());
+        document.getElementById('pvToken').value = document.getElementById('prevToken').value;
+        document.getElementById('previewForm').submit();
+    }, ms === undefined ? 350 : ms);
+}
+function setLogo(data) {
+    DESIGN.logo = data; const im = document.getElementById('logoPrev');
+    im.src = data || ''; im.classList.toggle('hidden', !data); document.getElementById('logoDel').classList.toggle('hidden', !data);
+}
+function removeLogo() { setLogo(''); const s = document.querySelector('#designForm [data-show="logo"]'); onDesignChange(); }
+function onLogoPicked(inp) {
+    const f = inp.files[0]; inp.value = ''; if (!f) return;
+    if (!/^image\//.test(f.type)) return UI.toast('اختر ملف صورة.', 'error');
+    const fr = new FileReader();
+    fr.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+            const max = 420, k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+            c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            let data = c.toDataURL('image/png'); if (data.length > 450000) data = c.toDataURL('image/jpeg', .85);
+            if (data.length > 580000) return UI.toast('الصورة كبيرة جداً، جرّب صورة أصغر.', 'error');
+            setLogo(data); document.querySelector('#designForm [data-show="logo"]').checked = true; onDesignChange();
+            UI.toast('تم رفع اللوجو وتفعيل ظهوره.', 'success');
+        };
+        img.onerror = () => UI.toast('تعذر قراءة الصورة.', 'error'); img.src = fr.result;
+    };
+    fr.readAsDataURL(f);
+}
+async function saveDesign() {
+    const btn = document.getElementById('saveDesignBtn'); btn.disabled = true;
+    try {
+        const d = await (await fetch('/admin/invoice-settings/save', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(readDesign())})).json();
+        if (d.success) { DESIGN = d.settings; setDirty(false); UI.toast(d.message, 'success', 5500); } else UI.toast(d.message || 'تعذر الحفظ', 'error');
+    } catch (e) { UI.toast('تعذر الاتصال بالسيرفر', 'error'); }
+    btn.disabled = false;
+}
+async function resetDesign() {
+    if (!await UI.confirm({title: 'الرجوع للتصميم الأصلي', message: 'هتتمسح كل تعديلاتك على شكل الفاتورة وترجع للتصميم الافتراضي. متأكد؟', danger: true, okText: 'نعم، ارجع'})) return;
+    const d = await (await fetch('/admin/invoice-settings/reset', {method: 'POST'})).json();
+    if (d.success) { DESIGN = d.settings; applyDesign(DESIGN); setDirty(false); schedulePreview(0); UI.toast(d.message, 'success'); }
+}
+window.addEventListener('beforeunload', e => { if (designDirty) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- الجولة التعريفية ---------- */
+const TOUR_STEPS = [
+    {title: 'أهلاً بيك في لوحة الإدارة 👋', text: 'جولة سريعة (دقيقة) تعرّفك على أهم الأقسام. تقدر تقفلها في أي وقت، وتعيدها من زر «مساعدة».'},
+    {sel: '#sideNav', title: 'القائمة الرئيسية', text: 'كل أقسام السيستم هنا: المبيعات، الأسعار والمخزن، الموظفين، والإعدادات.', before: () => document.getElementById('sidebar').classList.add('open')},
+    {sel: '#kpiGrid', title: 'الملخص المالي', text: 'مبيعات اليوم والخزينة والمصاريف وصافي الربح قدامك أول ما تفتح.', before: () => { switchTab('dashboard'); }},
+    {sel: '#btn-tab-invoices', title: 'الفواتير', text: 'ابحث في أي فاتورة، اطبعها، أو عدّلها بالكامل (العميل، البنود، الأسعار، الخصم) مع تسجيل السبب في الرقابة.'},
+    {sel: '#btn-tab-design', title: 'تصميم الفاتورة 🎨', text: 'غيّر الشكل والألوان والخط ومقاس الورق (حراري، A4، A5، أو مقاس مخصص) وأضف اللوجو، وشوف المعاينة فوراً.'},
+    {sel: '#btn-tab-services', title: 'الخدمات والمخزون', text: 'أضف خدماتك وأسعارها، وحدد حد الطلب عشان السيستم ينبهك لما الخامة تخلص.'},
+    {sel: '#btn-tab-cashiers', title: 'الموظفون', text: 'أنشئ حسابات الكاشير بيوزر وباسورد، وسجّل السلف والمكافآت.'},
+    {sel: '#helpBtn', title: 'مساعدتك دايماً هنا', text: 'علامات «؟» جنب الحقول بتشرح كل حاجة، والملاحظات الصفراء في كل قسم بتقولك تعمل إيه. بالتوفيق! 🚀', before: () => document.getElementById('sidebar').classList.remove('open')}
+];
+function startTour() { UI.tour(TOUR_STEPS, {key: 'admin_v2'}); }
+
+/* ---------- التشغيل ---------- */
+(function () {
+    if (localStorage.getItem('kiro_theme') === 'cream') document.body.classList.add('cream-mode'); syncTheme();
+    const h = (location.hash || '').replace('#', '');
+    const params = new URLSearchParams(location.search);
+    switchTab(TAB_META[h] ? h : ((params.has('q') || params.has('status') || params.has('debt') || params.has('page')) ? 'invoices' : 'dashboard'), true);
+    buildChart();
+    window.addEventListener('hashchange', () => { const x = location.hash.replace('#', ''); if (TAB_META[x] && x !== curTab) switchTab(x, true); });
+    if (window.innerWidth >= 1024) UI.tourOnce('admin_v2', TOUR_STEPS, 900);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>كشف حساب العميل — {{ customer.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Tajawal', sans-serif; box-sizing: border-box; }
+
+        :root {
+            --royal-red-dark: #1f0307;
+            --royal-red: #5c0a17;
+            --royal-red-accent: #8b1024;
+            --cream-light: #faf5ef;
+            --cream-base: #f0e4d4;
+            --cream-gold: #dfc8b0;
+            --glass-bg: rgba(45, 6, 12, 0.45);
+            --glass-border: rgba(223, 200, 176, 0.18);
+        }
+
+        body {
+            background-color: var(--royal-red-dark);
+            background-image:
+                radial-gradient(circle at 15% 15%, rgba(139, 16, 36, 0.3) 0%, transparent 45%),
+                radial-gradient(circle at 85% 85%, rgba(223, 200, 176, 0.1) 0%, transparent 50%),
+                linear-gradient(150deg, #160104 0%, #29040a 50%, #120103 100%);
+            color: var(--cream-light);
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            transition: all 0.2s ease;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--royal-red-accent); border-radius: 8px; }
+    </style>
+</head>
+<body class="p-4 md:p-8 custom-scrollbar">
+    <div class="max-w-4xl mx-auto space-y-6">
+
+        <!-- كارت العميل العلوي -->
+        <div class="glass-panel rounded-3xl p-6 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#5c0a17] to-[#8b1024] border border-[#dfc8b0]/30 text-[#faf5ef] flex items-center justify-center font-black text-2xl shadow-lg">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-black text-white">{{ customer.name }}</h1>
+                        <span class="bg-[#8b1024]/60 border border-[#dfc8b0]/30 text-[#dfc8b0] text-xs font-bold px-2.5 py-0.5 rounded-lg">
+                            {{ customer.tier_name or 'عميل VIP' }}
+                        </span>
+                    </div>
+                    <p class="text-xs text-[#dfc8b0]/80 mt-1">
+                        عميل لدى: <strong class="text-white">{{ press_name }}</strong>
+                        {% if customer.phone %}| <span class="font-mono">📞 {{ customer.phone }}</span>{% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="text-left bg-black/30 border border-[#dfc8b0]/15 px-4 py-2 rounded-2xl">
+                <span class="text-[11px] text-[#dfc8b0]/70 block font-bold">نسبة الخصم المعتمدة</span>
+                <span class="text-xl font-black text-amber-300 font-mono">{{ customer.discount_percentage or 0 }}%</span>
+            </div>
+        </div>
+
+        <!-- ملخص الحساب المالي -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="glass-panel rounded-2xl p-5">
+                <span class="text-xs text-[#dfc8b0]/75 font-bold block">إجمالي المسحوبات والمطبوعات</span>
+                <div class="text-2xl font-black text-white mt-1 font-mono">
+                    {{ "{:,.2f}".format(total_spent or 0) }} <span class="text-xs font-normal text-[#dfc8b0]">ج.م</span>
+                </div>
+            </div>
+            <div class="glass-panel rounded-2xl p-5">
+                <span class="text-xs text-[#dfc8b0]/75 font-bold block">المتبقي طرفكم للحساب</span>
+                <div class="text-2xl font-black {{ 'text-red-400' if total_remaining > 0 else 'text-emerald-400' }} mt-1 font-mono">
+                    {{ "{:,.2f}".format(total_remaining or 0) }} <span class="text-xs font-normal text-[#dfc8b0]">ج.م</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- جدول الفواتير والطلبات -->
+        <div class="glass-panel rounded-3xl p-6">
+            <h2 class="font-black text-sm mb-4 text-[#faf5ef] flex items-center gap-2">
+                <i class="fa-solid fa-receipt text-[#dfc8b0]"></i>
+                <span>سجل الفواتير والمطبوعات</span>
+            </h2>
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-right text-xs">
+                    <thead class="border-b border-[#dfc8b0]/15 text-[#dfc8b0]">
+                        <tr>
+                            <th class="p-3">رقم الفاتورة</th>
+                            <th>التاريخ</th>
+                            <th>الإجمالي</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                            <th>حالة الطلب</th>
+                            <th>الإيصال الإلكتروني</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#dfc8b0]/10">
+                        {% for i in invoices %}
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="p-3 font-mono font-bold text-[#dfc8b0]">#{{ i.token }}</td>
+                            <td class="text-[#dfc8b0]/70 font-mono">{{ i.date_str[:16] if i.date_str else '—' }}</td>
+                            <td class="font-bold font-mono text-amber-300">{{ "{:,.2f}".format(i.grand_total or 0) }} ج</td>
+                            <td class="font-mono text-emerald-400">{{ "{:,.2f}".format(i.deposit or 0) }} ج</td>
+                            <td class="font-bold font-mono {{ 'text-red-400' if i.remaining > 0 else 'text-emerald-400' }}">
+                                {{ "{:,.2f}".format(i.remaining or 0) }} ج
+                            </td>
+                            <td>
+                                <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold
+                                    {% if i.delivery_status == 'جاهز للاستلام' %}bg-amber-950/60 text-amber-300 border border-amber-500/30
+                                    {% elif i.delivery_status == 'تم التسليم' %}bg-emerald-950/60 text-emerald-300 border border-emerald-500/30
+                                    {% else %}bg-[#5c0a17]/60 text-[#dfc8b0] border border-[#dfc8b0]/30{% endif %}">
+                                    {{ i.delivery_status }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="/receipt/{{ i.token }}" target="_blank" class="text-amber-300 hover:text-white font-bold inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> عرض الفاتورة
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-8 text-[#dfc8b0]/50">لا توجد فواتير مسجلة في سجلك حتى الآن</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="text-center text-xs text-[#dfc8b0]/50 font-mono">
+            KIRO Print OS Customer Portal &copy; {{ current_year }}
+        </div>
+    </div>
+</body>
+</html>
